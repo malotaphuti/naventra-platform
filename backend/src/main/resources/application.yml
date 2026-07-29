@@ -1,0 +1,98 @@
+spring:
+  application:
+    name: fleetops-backend
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fleetops}
+    username: ${DB_USERNAME:fleetops}
+    password: ${DB_PASSWORD:fleetops}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Application custom properties
+fleetops:
+  jwt:
+    secret: ${JWT_SECRET:fleetops-dev-secret-key-must-be-at-least-256-bits-long-for-hs512}
+    access-token-expiry: 900 # 15 minutes in seconds
+    refresh-token-expiry: 604800 # 7 days in seconds
+
+  security:
+    max-failed-attempts: 5
+    lock-duration-minutes: 30
+    password-min-length: 8
+
+  file-upload:
+    base-path: ${UPLOAD_PATH:./uploads}
+    allowed-types: image/jpeg,image/png,image/gif,application/pdf
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+
+springdoc:
+  api-docs:
+    path: /v1/api-docs
+  swagger-ui:
+    path: /v1/swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha

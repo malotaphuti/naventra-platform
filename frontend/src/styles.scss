@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1 {
+  font-weight: 500;
+  color: #333;
+}
+
+.mat-mdc-card {
+  margin-bottom: 1rem;
+}
+
+// Responsive utilities
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
