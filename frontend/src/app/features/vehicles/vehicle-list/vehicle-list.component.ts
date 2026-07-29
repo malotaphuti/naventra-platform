@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatChipsModule } from '@angular/material/chips';
 import { FormsModule } from '@angular/forms';
+import { AuthStore } from '../../../core/stores/auth.store';
 
 interface Vehicle {
   id: number;
@@ -43,9 +44,11 @@ interface Page<T> {
   template: `
     <div class="page-header">
       <h1>Vehicles</h1>
-      <button mat-raised-button color="primary" routerLink="new">
-        <mat-icon>add</mat-icon> Register Vehicle
-      </button>
+      @if (canRegister()) {
+        <button mat-raised-button color="primary" routerLink="new">
+          <mat-icon>add</mat-icon> Register Vehicle
+        </button>
+      }
     </div>
 
     <div class="filters">
@@ -134,10 +137,12 @@ interface Page<T> {
 })
 export class VehicleListComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly authStore = inject(AuthStore);
 
   readonly vehicles = signal<Vehicle[]>([]);
   readonly totalElements = signal(0);
   readonly displayedColumns = ['registrationNumber', 'make', 'model', 'status', 'odometer', 'actions'];
+  readonly canRegister = computed(() => this.authStore.hasAnyRole(['SYSTEM_ADMIN', 'FLEET_MANAGER']));
 
   searchTerm = '';
   statusFilter: string | null = null;

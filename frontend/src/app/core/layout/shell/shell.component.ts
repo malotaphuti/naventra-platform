@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -113,25 +113,26 @@ export class ShellComponent {
 
   private readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Vehicles', icon: 'directions_car', route: '/vehicles' },
-    { label: 'Drivers', icon: 'people', route: '/drivers' },
-    { label: 'Trips', icon: 'route', route: '/trips' },
-    { label: 'Fuel', icon: 'local_gas_station', route: '/fuel' },
-    { label: 'Maintenance', icon: 'build', route: '/maintenance' },
-    { label: 'Incidents', icon: 'warning', route: '/incidents' },
-    { label: 'GPS Tracking', icon: 'gps_fixed', route: '/tracking' },
+    { label: 'Vehicles', icon: 'directions_car', route: '/vehicles', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'MAINTENANCE_OFFICER', 'EXECUTIVE'] },
+    { label: 'My Vehicle', icon: 'directions_car', route: '/my-vehicle', roles: ['DRIVER'] },
+    { label: 'Drivers', icon: 'people', route: '/drivers', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER'] },
+    { label: 'Trips', icon: 'route', route: '/trips', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'EXECUTIVE'] },
+    { label: 'My Trips', icon: 'route', route: '/my-trips', roles: ['DRIVER'] },
+    { label: 'Fuel', icon: 'local_gas_station', route: '/fuel', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER'] },
+    { label: 'Maintenance', icon: 'build', route: '/maintenance', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'MAINTENANCE_OFFICER'] },
+    { label: 'Incidents', icon: 'warning', route: '/incidents', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER'] },
+    { label: 'GPS Tracking', icon: 'gps_fixed', route: '/tracking', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'EXECUTIVE'] },
     { label: 'Reports', icon: 'assessment', route: '/reports', roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'EXECUTIVE'] },
     { label: 'Administration', icon: 'admin_panel_settings', route: '/admin', roles: ['SYSTEM_ADMIN'] }
   ];
 
-  readonly visibleNavItems = signal<NavItem[]>(this.getVisibleItems());
-
-  private getVisibleItems(): NavItem[] {
+  readonly visibleNavItems = computed(() => {
+    const role = this.authStore.userRole();
     return this.navItems.filter(item => {
       if (!item.roles) return true;
-      return this.authStore.hasAnyRole(item.roles);
+      return role != null && item.roles.includes(role);
     });
-  }
+  });
 
   logout(): void {
     this.authService.logout();

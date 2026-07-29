@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { roleGuard } from '../../core/guards/role.guard';
 
 export const VEHICLE_ROUTES: Routes = [
   {
@@ -7,7 +8,9 @@ export const VEHICLE_ROUTES: Routes = [
   },
   {
     path: 'new',
-    loadComponent: () => import('./vehicle-form/vehicle-form.component').then(m => m.VehicleFormComponent)
+    loadComponent: () => import('./vehicle-form/vehicle-form.component').then(m => m.VehicleFormComponent),
+    canActivate: [roleGuard],
+    data: { roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER'] }
   },
   {
     path: ':id',

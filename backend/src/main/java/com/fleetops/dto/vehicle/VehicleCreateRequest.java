@@ -17,7 +17,7 @@ public class VehicleCreateRequest {
     @Size(max = 20, message = "Registration number must not exceed 20 characters")
     private String registrationNumber;
 
-    @Size(min = 17, max = 17, message = "VIN must be exactly 17 characters")
+    @Size(max = 17, message = "VIN must be exactly 17 characters when provided")
     private String vin;
 
     @Size(max = 30)

@@ -52,13 +52,15 @@ public class VehicleService {
             throw new BusinessRuleException("Vehicle with registration number '" +
                     request.getRegistrationNumber() + "' already exists");
         }
-        if (StringUtils.hasText(request.getVin()) && vehicleRepository.existsByVin(request.getVin())) {
-            throw new BusinessRuleException("Vehicle with VIN '" + request.getVin() + "' already exists");
+
+        String vin = StringUtils.hasText(request.getVin()) ? request.getVin() : null;
+        if (vin != null && vehicleRepository.existsByVin(vin)) {
+            throw new BusinessRuleException("Vehicle with VIN '" + vin + "' already exists");
         }
 
         Vehicle vehicle = Vehicle.builder()
                 .registrationNumber(request.getRegistrationNumber())
-                .vin(request.getVin())
+                .vin(vin)
                 .engineNumber(request.getEngineNumber())
                 .chassisNumber(request.getChassisNumber())
                 .make(request.getMake())
