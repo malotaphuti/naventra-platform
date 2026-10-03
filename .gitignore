@@ -20,7 +20,13 @@ Thumbs.db
 
 # Environment
 .env
+docker-compose.override.yml
+deploy/backups/
 *.log
 
 # Uploads
 uploads/
+
+# Python build cache (docs/guides generators)
+__pycache__/
+*.pyc

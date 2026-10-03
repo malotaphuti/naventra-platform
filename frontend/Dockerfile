@@ -1,7 +1,8 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# Cache npm downloads between builds; retry flaky network fetches
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --fetch-retries=5
 COPY . .
 RUN npm run build:prod
 
