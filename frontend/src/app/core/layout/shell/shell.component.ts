@@ -1,5 +1,8 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { RouterModule } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -43,7 +46,8 @@ export const ROLE_LABELS: Record<string, string> = {
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
-      <mat-sidenav mode="side" [opened]="sidenavOpen()" class="sidenav">
+      <mat-sidenav [mode]="isMobile() ? 'over' : 'side'" [opened]="sidenavOpen()"
+                   (closedStart)="sidenavOpen.set(false)" class="sidenav">
         <div class="brand">
           <span class="brand-mark"><mat-icon>local_shipping</mat-icon></span>
           <span class="brand-name">FleetOps</span>
@@ -52,7 +56,7 @@ export const ROLE_LABELS: Record<string, string> = {
         <span class="nav-caption">Menu</span>
         <nav class="nav">
           @for (item of visibleNavItems(); track item.route) {
-            <a class="nav-item" [routerLink]="item.route" routerLinkActive="active">
+            <a class="nav-item" [routerLink]="item.route" routerLinkActive="active" (click)="closeOnMobile()">
               <mat-icon>{{ item.icon }}</mat-icon>
               <span>{{ item.label }}</span>
             </a>
@@ -180,8 +184,26 @@ export const ROLE_LABELS: Record<string, string> = {
 export class ShellComponent {
   readonly authStore = inject(AuthStore);
   private readonly authService = inject(AuthService);
+  private readonly breakpoints = inject(BreakpointObserver);
+
+  /** Phones: the menu slides over the page and closes after navigating. Desktop: pinned beside the page. */
+  readonly isMobile = toSignal(
+    this.breakpoints.observe('(max-width: 768px)').pipe(map(state => state.matches)),
+    { initialValue: window.innerWidth <= 768 }
+  );
   readonly sidenavOpen = signal(window.innerWidth > 768);
   readonly today = new Date();
+
+  constructor() {
+    // Re-pin the menu when the window grows to desktop size, hide it when it shrinks to phone size
+    effect(() => this.sidenavOpen.set(!this.isMobile()), { allowSignalWrites: true });
+  }
+
+  closeOnMobile(): void {
+    if (this.isMobile()) {
+      this.sidenavOpen.set(false);
+    }
+  }
 
   private readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'space_dashboard', route: '/dashboard' },
@@ -222,7 +244,7 @@ export class ShellComponent {
 
   changePassword(): void {
     import('../../../features/admin/change-password-dialog.component').then(m =>
-      this.dialog.open(m.ChangePasswordDialogComponent, { width: '440px' }));
+      this.dialog.open(m.ChangePasswordDialogComponent, { width: '440px', maxWidth: '95vw' }));
   }
 
   logout(): void {

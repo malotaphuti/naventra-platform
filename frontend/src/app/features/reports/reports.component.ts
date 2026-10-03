@@ -128,7 +128,7 @@ const REPORTS: ReportCard[] = [
     .filters { align-items: center; }
     .filters .mat-mdc-form-field { width: 280px; }
     .quick { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
     .rcard { display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
     .rcard.active { border-color: var(--fo-accent); }
     .rhead { display: flex; gap: 0.85rem; }

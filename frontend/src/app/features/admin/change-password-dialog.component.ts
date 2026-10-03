@@ -47,7 +47,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
       </button>
     </mat-dialog-actions>
   `,
-  styles: [`.grid { display: flex; flex-direction: column; min-width: 340px; padding-top: 0.5rem; } .err { color: #dc2626; }`]
+  styles: [`.grid { display: flex; flex-direction: column; width: 100%; padding-top: 0.5rem; } .err { color: #dc2626; }`]
 })
 export class ChangePasswordDialogComponent {
   private readonly http = inject(HttpClient);

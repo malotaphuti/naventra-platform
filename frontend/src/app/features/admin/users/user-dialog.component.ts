@@ -64,7 +64,7 @@ export interface UserDialogData {
       </button>
     </mat-dialog-actions>
   `,
-  styles: [`.grid { display: flex; flex-direction: column; min-width: 360px; padding-top: 0.5rem; } .grid mat-form-field { width: 100%; }`]
+  styles: [`.grid { display: flex; flex-direction: column; width: 100%; padding-top: 0.5rem; } .grid mat-form-field { width: 100%; }`]
 })
 export class UserDialogComponent {
   readonly data = inject<UserDialogData>(MAT_DIALOG_DATA);

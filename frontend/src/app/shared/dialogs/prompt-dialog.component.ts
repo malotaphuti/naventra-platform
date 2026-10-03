@@ -49,7 +49,7 @@ export interface PromptDialogData {
   `,
   styles: [`
     .msg { margin: 0 0 1rem; color: var(--fo-muted); line-height: 1.5; }
-    .field { width: 100%; min-width: 320px; }
+    .field { width: 100%; }
   `]
 })
 export class PromptDialogComponent {
