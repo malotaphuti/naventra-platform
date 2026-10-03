@@ -67,6 +67,11 @@ public class JwtProvider {
         return false;
     }
 
+    /** True for access tokens; refresh tokens carry type=refresh and must not authenticate API calls. */
+    public boolean isAccessToken(String token) {
+        return !"refresh".equals(extractClaims(token).get("type", String.class));
+    }
+
     public Long extractUserId(String token) {
         Claims claims = extractClaims(token);
         return Long.parseLong(claims.getSubject());

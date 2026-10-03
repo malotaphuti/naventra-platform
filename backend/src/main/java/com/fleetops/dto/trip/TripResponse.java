@@ -35,4 +35,9 @@ public class TripResponse {
     private Long endMileageKm;
     private Long distanceKm;
     private String rejectionReason;
+    /** Reason given when the trip was cancelled. */
+    private String reviewNotes;
+    private String vehicleMake;
+    private String vehicleModel;
+    private String approvedByName;
 }

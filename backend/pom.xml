@@ -127,6 +127,18 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- Report exports -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>1.3.43</version>
+        </dependency>
+
         <!-- H2 for development/demo -->
         <dependency>
             <groupId>com.h2database</groupId>

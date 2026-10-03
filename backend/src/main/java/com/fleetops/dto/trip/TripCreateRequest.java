@@ -14,7 +14,7 @@ public class TripCreateRequest {
     @NotNull(message = "Vehicle ID is required")
     private Long vehicleId;
 
-    @NotNull(message = "Driver ID is required")
+    /** Required for fleet managers; ignored for drivers, who can only request trips for themselves. */
     private Long driverId;
 
     @NotBlank(message = "Origin is required")

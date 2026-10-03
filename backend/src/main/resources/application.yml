@@ -69,6 +69,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  health:
+    # Mail is optional (no SMTP in local/dev); don't let it mark the whole app DOWN
+    mail:
+      enabled: false
 
 # Application custom properties
 fleetops:

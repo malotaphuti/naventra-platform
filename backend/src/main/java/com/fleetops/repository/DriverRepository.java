@@ -30,4 +30,6 @@ public interface DriverRepository extends JpaRepository<Driver, Long>, JpaSpecif
     long countByStatusAndDeletedFalse(DriverStatus status);
 
     long countByDeletedFalse();
+
+    boolean existsByUserIdAndDeletedFalse(Long userId);
 }

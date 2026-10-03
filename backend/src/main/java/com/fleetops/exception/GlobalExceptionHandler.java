@@ -3,15 +3,18 @@ package com.fleetops.exception;
 import com.fleetops.dto.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,7 +61,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(
             AccessDeniedException ex, HttpServletRequest request) {
-        return buildResponse(HttpStatus.FORBIDDEN, "Access denied", request);
+        // Keep our own explanatory messages; hide Spring's generic one
+        String message = ex.getMessage() != null && !"Access Denied".equals(ex.getMessage())
+                ? ex.getMessage() : "Access denied";
+        return buildResponse(HttpStatus.FORBIDDEN, message, request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return buildResponse(HttpStatus.CONFLICT,
+                "The record conflicts with existing data (duplicate or still in use). Please retry or check your input.",
+                request);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResource(
+            NoResourceFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Endpoint not found", request);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "Missing required parameter: " + ex.getParameterName(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

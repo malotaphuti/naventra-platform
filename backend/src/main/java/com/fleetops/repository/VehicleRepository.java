@@ -32,4 +32,16 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long>, JpaSpec
     long countByStatusAndDeletedFalse(VehicleStatus status);
 
     long countByDeletedFalse();
+
+    Optional<Vehicle> findFirstByAssignedDriverIdAndDeletedFalse(Long driverId);
+
+    List<Vehicle> findByNextServiceDateBeforeAndDeletedFalseOrderByNextServiceDateAsc(LocalDate date);
+
+    long countByNextServiceDateBeforeAndDeletedFalse(LocalDate date);
+
+    long countByNextServiceDateBetweenAndDeletedFalse(LocalDate from, LocalDate to);
+
+    long countByLicenseExpiryDateBetweenAndDeletedFalse(LocalDate from, LocalDate to);
+
+    long countByInsuranceExpiryDateBetweenAndDeletedFalse(LocalDate from, LocalDate to);
 }

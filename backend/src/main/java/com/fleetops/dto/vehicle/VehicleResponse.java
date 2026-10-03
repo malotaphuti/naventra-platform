@@ -31,10 +31,14 @@ public class VehicleResponse {
     private int engineCapacityCc;
     private LocalDate purchaseDate;
     private BigDecimal purchaseCost;
+    private String insuranceProvider;
+    private String insurancePolicyNumber;
     private LocalDate insuranceExpiryDate;
     private LocalDate licenseExpiryDate;
     private Long currentOdometerKm;
     private VehicleStatus status;
+    private Long assignedDriverId;
+    private String assignedDriverName;
     private LocalDate nextServiceDate;
     private Long nextServiceMileageKm;
     private LocalDateTime createdAt;

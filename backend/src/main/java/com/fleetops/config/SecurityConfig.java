@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -15,6 +16,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -53,11 +55,16 @@ public class SecurityConfig {
                                 "/v1/api-docs/**",
                                 "/v1/swagger-ui/**",
                                 "/v1/swagger-ui.html",
-                                "/actuator/health"
+                                "/actuator/health",
+                                // Spring forwards sendError() here; blocking it would turn every 403/404 into a 401
+                                "/error"
                         ).permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("SYSTEM_ADMIN")
                         .anyRequest().authenticated()
                 )
+                // Missing/expired token -> 401 (not the default 403) so the client knows to refresh
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
                 .build();

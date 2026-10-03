@@ -69,6 +69,10 @@ public class AuthService {
             throw new BadCredentialsException("Invalid credentials");
         }
 
+        if (!user.isEnabled()) {
+            throw new BusinessRuleException("Account is disabled. Contact your administrator.");
+        }
+
         // Check if email is verified
         if (!user.isEmailVerified()) {
             throw new BusinessRuleException("Email not verified. Please verify your email first.");
@@ -119,6 +123,9 @@ public class AuthService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
+        if (!user.isEnabled() || user.isDeleted()) {
+            throw new BadCredentialsException("Account is disabled");
+        }
 
         // Generate new tokens (token rotation)
         String newAccessToken = jwtProvider.generateAccessToken(user);

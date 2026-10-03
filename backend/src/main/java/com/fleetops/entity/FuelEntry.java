@@ -53,6 +53,7 @@ public class FuelEntry extends BaseAuditEntity {
 
     private String receiptUrl;
 
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
     @Builder.Default

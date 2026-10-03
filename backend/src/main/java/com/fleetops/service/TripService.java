@@ -8,6 +8,7 @@ import com.fleetops.entity.Driver;
 import com.fleetops.entity.Trip;
 import com.fleetops.entity.User;
 import com.fleetops.entity.Vehicle;
+import com.fleetops.entity.enums.DriverStatus;
 import com.fleetops.entity.enums.TripStatus;
 import com.fleetops.entity.enums.VehicleStatus;
 import com.fleetops.exception.BusinessRuleException;
@@ -17,6 +18,7 @@ import com.fleetops.repository.DriverRepository;
 import com.fleetops.repository.TripRepository;
 import com.fleetops.repository.UserRepository;
 import com.fleetops.repository.VehicleRepository;
+import com.fleetops.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,7 +32,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
@@ -42,11 +43,22 @@ public class TripService {
     private final DriverRepository driverRepository;
     private final UserRepository userRepository;
     private final VehicleService vehicleService;
+    private final CurrentDriverService currentDriverService;
 
-    private final AtomicLong tripSequence = new AtomicLong(0);
+    private static final DateTimeFormatter TRIP_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /** Trips that still hold their driver and vehicle (pending approval, approved or under way). */
+    private static final List<TripStatus> OPEN_STATUSES = List.of(
+            TripStatus.REQUESTED, TripStatus.APPROVED, TripStatus.ALLOCATED, TripStatus.IN_PROGRESS);
+
+    private static final List<TripStatus> CANCELLABLE_STATUSES = List.of(
+            TripStatus.REQUESTED, TripStatus.APPROVED, TripStatus.ALLOCATED);
 
     @Transactional
-    public TripResponse createTrip(TripCreateRequest request, Long requesterId) {
+    public TripResponse createTrip(TripCreateRequest request, UserPrincipal requester) {
+        // Drivers may only request trips for themselves
+        request.setDriverId(currentDriverService.resolveDriverId(requester, request.getDriverId()));
+
         // Validate vehicle
         Vehicle vehicle = vehicleRepository.findByIdAndDeletedFalse(request.getVehicleId())
                 .orElseThrow(() -> new EntityNotFoundException("Vehicle", request.getVehicleId()));
@@ -77,17 +89,18 @@ public class TripService {
             throw new BusinessRuleException("Driver medical certificate has expired");
         }
 
-        boolean hasActiveTrip = tripRepository.existsByDriverAndStatusInAndDeletedFalse(
-                driver, List.of(TripStatus.APPROVED, TripStatus.ALLOCATED, TripStatus.IN_PROGRESS));
-        if (hasActiveTrip) {
-            throw new BusinessRuleException("Driver already has an active trip");
+        if (driver.getStatus() != DriverStatus.ACTIVE) {
+            throw new BusinessRuleException("Driver is not available for trips. Current status: " + driver.getStatus());
         }
 
-        // Check vehicle not already on active trip
-        boolean vehicleHasActiveTrip = tripRepository.existsByVehicleAndStatusInAndDeletedFalse(
-                vehicle, List.of(TripStatus.APPROVED, TripStatus.ALLOCATED, TripStatus.IN_PROGRESS));
-        if (vehicleHasActiveTrip) {
-            throw new BusinessRuleException("Vehicle already assigned to an active trip");
+        if (tripRepository.existsByDriverAndStatusInAndDeletedFalse(driver, OPEN_STATUSES)) {
+            throw new BusinessRuleException(
+                    "Driver already has an open trip (requested, approved or in progress)");
+        }
+
+        if (tripRepository.existsByVehicleAndStatusInAndDeletedFalse(vehicle, OPEN_STATUSES)) {
+            throw new BusinessRuleException(
+                    "Vehicle already has an open trip (requested, approved or in progress)");
         }
 
         // Create trip
@@ -105,7 +118,7 @@ public class TripService {
                 .build();
 
         trip = tripRepository.save(trip);
-        log.info("Trip created: {} by user {}", trip.getTripNumber(), requesterId);
+        log.info("Trip created: {} by user {}", trip.getTripNumber(), requester.getUsername());
         return mapToResponse(trip);
     }
 
@@ -121,7 +134,13 @@ public class TripService {
         User approver = userRepository.findById(approverId)
                 .orElseThrow(() -> new EntityNotFoundException("User", approverId));
 
-        // Reserve the vehicle
+        // The vehicle may have gone to maintenance or out of service since the request was made
+        VehicleStatus vehicleStatus = trip.getVehicle().getStatus();
+        if (vehicleStatus != VehicleStatus.AVAILABLE) {
+            throw new BusinessRuleException("Vehicle " + trip.getVehicle().getRegistrationNumber()
+                    + " is no longer available (current status: " + vehicleStatus + ")");
+        }
+
         vehicleService.transitionStatus(trip.getVehicle().getId(), VehicleStatus.RESERVED, "Trip approved");
 
         trip.setStatus(TripStatus.APPROVED);
@@ -151,9 +170,10 @@ public class TripService {
     }
 
     @Transactional
-    public TripResponse startTrip(Long tripId, TripStartRequest request) {
+    public TripResponse startTrip(Long tripId, TripStartRequest request, UserPrincipal principal) {
         Trip trip = tripRepository.findByIdAndDeletedFalse(tripId)
                 .orElseThrow(() -> new EntityNotFoundException("Trip", tripId));
+        assertCanAccess(trip, principal);
 
         if (trip.getStatus() != TripStatus.APPROVED) {
             throw new InvalidStateTransitionException("Trip", trip.getStatus().name(), TripStatus.IN_PROGRESS.name());
@@ -171,15 +191,20 @@ public class TripService {
         trip.setStartedAt(LocalDateTime.now());
         trip.setStartMileageKm(request.getStartMileageKm());
 
+        Driver driver = trip.getDriver();
+        driver.setStatus(DriverStatus.ON_TRIP);
+        driverRepository.save(driver);
+
         trip = tripRepository.save(trip);
         log.info("Trip started: {} (mileage: {} km)", trip.getTripNumber(), request.getStartMileageKm());
         return mapToResponse(trip);
     }
 
     @Transactional
-    public TripResponse endTrip(Long tripId, TripEndRequest request) {
+    public TripResponse endTrip(Long tripId, TripEndRequest request, UserPrincipal principal) {
         Trip trip = tripRepository.findByIdAndDeletedFalse(tripId)
                 .orElseThrow(() -> new EntityNotFoundException("Trip", tripId));
+        assertCanAccess(trip, principal);
 
         if (trip.getStatus() != TripStatus.IN_PROGRESS) {
             throw new InvalidStateTransitionException("Trip", trip.getStatus().name(), TripStatus.COMPLETED.name());
@@ -190,13 +215,16 @@ public class TripService {
                     "End mileage must be greater than start mileage (" + trip.getStartMileageKm() + " km)");
         }
 
-        // Return vehicle to available
-        vehicleService.transitionStatus(trip.getVehicle().getId(), VehicleStatus.AVAILABLE, "Trip ended");
-
-        // Update vehicle odometer
+        // Only release the vehicle if it is still on this trip; it may have been sent to maintenance mid-trip
         Vehicle vehicle = trip.getVehicle();
+        if (vehicle.getStatus() == VehicleStatus.ON_TRIP) {
+            vehicleService.transitionStatus(vehicle.getId(), VehicleStatus.AVAILABLE, "Trip ended");
+        }
+
         vehicle.setCurrentOdometerKm(request.getEndMileageKm());
         vehicleRepository.save(vehicle);
+
+        releaseDriver(trip.getDriver());
 
         long distance = request.getEndMileageKm() - trip.getStartMileageKm();
 
@@ -227,22 +255,53 @@ public class TripService {
         return mapToResponse(trip);
     }
 
-    @Transactional(readOnly = true)
-    public TripResponse getTrip(Long id) {
-        Trip trip = tripRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new EntityNotFoundException("Trip", id));
+    @Transactional
+    public TripResponse cancelTrip(Long tripId, String reason, UserPrincipal principal) {
+        Trip trip = tripRepository.findByIdAndDeletedFalse(tripId)
+                .orElseThrow(() -> new EntityNotFoundException("Trip", tripId));
+        assertCanAccess(trip, principal);
+
+        if (!CANCELLABLE_STATUSES.contains(trip.getStatus())) {
+            throw new InvalidStateTransitionException("Trip", trip.getStatus().name(), TripStatus.CANCELLED.name());
+        }
+
+        // An approved trip holds a reservation on the vehicle; give it back
+        Vehicle vehicle = trip.getVehicle();
+        if (trip.getStatus() != TripStatus.REQUESTED && vehicle.getStatus() == VehicleStatus.RESERVED) {
+            vehicleService.transitionStatus(vehicle.getId(), VehicleStatus.AVAILABLE, "Trip cancelled");
+        }
+
+        trip.setStatus(TripStatus.CANCELLED);
+        trip.setReviewNotes(StringUtils.hasText(reason) ? reason.trim() : null);
+        releaseDriver(trip.getDriver());
+
+        trip = tripRepository.save(trip);
+        log.info("Trip cancelled: {} by {}", trip.getTripNumber(), principal.getUsername());
         return mapToResponse(trip);
     }
 
     @Transactional(readOnly = true)
-    public Page<TripResponse> searchTrips(String search, TripStatus status, Long driverId, Pageable pageable) {
+    public TripResponse getTrip(Long id, UserPrincipal principal) {
+        Trip trip = tripRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new EntityNotFoundException("Trip", id));
+        assertCanAccess(trip, principal);
+        return mapToResponse(trip);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TripResponse> searchTrips(String search, TripStatus status, Long driverId, Pageable pageable,
+                                          UserPrincipal principal) {
+        // Drivers only ever see their own trips, whatever driverId they ask for
+        Long ownDriverId = currentDriverService.ownDriverIdIfDriver(principal);
+        Long effectiveDriverId = ownDriverId != null ? ownDriverId : driverId;
+
         Specification<Trip> spec = Specification.where(notDeleted());
 
         if (status != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
         }
-        if (driverId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("driver").get("id"), driverId));
+        if (effectiveDriverId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("driver").get("id"), effectiveDriverId));
         }
         if (StringUtils.hasText(search)) {
             String pattern = "%" + search.toLowerCase() + "%";
@@ -256,10 +315,27 @@ public class TripService {
         return tripRepository.findAll(spec, pageable).map(this::mapToResponse);
     }
 
+    /**
+     * Next number for today (TRIP-YYYYMMDD-XXXX), continuing from the highest one already stored,
+     * so numbering survives restarts. trip_number's unique constraint guards against concurrent requests.
+     */
     private String generateTripNumber() {
-        String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long sequence = tripSequence.incrementAndGet();
-        return String.format("TRIP-%s-%04d", datePart, sequence);
+        String prefix = "TRIP-" + LocalDate.now().format(TRIP_DATE) + "-";
+        long next = tripRepository.findTopByTripNumberStartingWithOrderByTripNumberDesc(prefix)
+                .map(last -> Long.parseLong(last.getTripNumber().substring(prefix.length())) + 1)
+                .orElse(1L);
+        return String.format("%s%04d", prefix, next);
+    }
+
+    private void releaseDriver(Driver driver) {
+        if (driver.getStatus() == DriverStatus.ON_TRIP) {
+            driver.setStatus(DriverStatus.ACTIVE);
+            driverRepository.save(driver);
+        }
+    }
+
+    private void assertCanAccess(Trip trip, UserPrincipal principal) {
+        currentDriverService.assertOwnRecord(principal, trip.getDriver().getId());
     }
 
     private Specification<Trip> notDeleted() {
@@ -289,6 +365,10 @@ public class TripService {
                 .endMileageKm(trip.getEndMileageKm())
                 .distanceKm(trip.getDistanceKm())
                 .rejectionReason(trip.getRejectionReason())
+                .reviewNotes(trip.getReviewNotes())
+                .vehicleMake(trip.getVehicle().getMake())
+                .vehicleModel(trip.getVehicle().getModel())
+                .approvedByName(trip.getApprovedBy() != null ? trip.getApprovedBy().getFullName() : null)
                 .build();
     }
 }

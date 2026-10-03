@@ -27,6 +27,13 @@ public interface FuelEntryRepository extends JpaRepository<FuelEntry, Long>, Jpa
            "AND f.filledAt >= :from AND f.filledAt < :to")
     BigDecimal sumTotalCostBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
+    @Query("SELECT COALESCE(SUM(f.totalCost), 0) FROM FuelEntry f WHERE f.driver.id = :driverId " +
+           "AND f.deleted = false AND f.filledAt >= :from AND f.filledAt < :to")
+    BigDecimal sumTotalCostByDriverBetween(
+            @Param("driverId") Long driverId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
     @Query("SELECT COALESCE(SUM(f.litres), 0) FROM FuelEntry f WHERE f.vehicle.id = :vehicleId " +
            "AND f.deleted = false AND f.filledAt >= :from AND f.filledAt < :to")
     Double sumLitresByVehicleBetween(

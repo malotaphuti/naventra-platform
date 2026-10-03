@@ -4,6 +4,7 @@ import com.fleetops.dto.vehicle.VehicleCreateRequest;
 import com.fleetops.dto.vehicle.VehicleResponse;
 import com.fleetops.dto.vehicle.VehicleUpdateRequest;
 import com.fleetops.entity.enums.VehicleStatus;
+import com.fleetops.service.AuditService;
 import com.fleetops.service.VehicleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ import java.util.List;
 public class VehicleController {
 
     private final VehicleService vehicleService;
+    private final AuditService auditService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER')")
@@ -40,7 +42,7 @@ public class VehicleController {
     @Operation(summary = "Update vehicle details")
     public VehicleResponse updateVehicle(
             @PathVariable Long id,
-            @RequestBody VehicleUpdateRequest request) {
+            @Valid @RequestBody VehicleUpdateRequest request) {
         return vehicleService.updateVehicle(id, request);
     }
 
@@ -75,7 +77,10 @@ public class VehicleController {
             @PathVariable Long id,
             @RequestParam VehicleStatus status,
             @RequestParam(required = false) String reason) {
+        VehicleStatus previous = vehicleService.currentStatus(id);
         vehicleService.transitionStatus(id, status, reason);
+        auditService.annotate("STATUS_CHANGE", previous.name(),
+                reason == null || reason.isBlank() ? status.name() : status.name() + " (reason: " + reason.trim() + ")");
         return ResponseEntity.ok().build();
     }
 

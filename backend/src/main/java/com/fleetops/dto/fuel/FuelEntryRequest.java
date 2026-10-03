@@ -16,7 +16,7 @@ public class FuelEntryRequest {
     @NotNull(message = "Vehicle ID is required")
     private Long vehicleId;
 
-    @NotNull(message = "Driver ID is required")
+    /** Ignored for DRIVER callers (always their own id); required for other roles. */
     private Long driverId;
 
     private Long tripId;
@@ -25,6 +25,7 @@ public class FuelEntryRequest {
     private LocalDateTime filledAt;
 
     @NotBlank(message = "Fuel type is required")
+    @Size(max = 30, message = "Fuel type must be at most 30 characters")
     private String fuelType;
 
     @NotNull(message = "Litres is required")
@@ -39,6 +40,9 @@ public class FuelEntryRequest {
     @Min(value = 0, message = "Odometer must be non-negative")
     private Long odometerReadingKm;
 
+    @Size(max = 100, message = "Station must be at most 100 characters")
     private String station;
+
+    @Size(max = 2000, message = "Notes must be at most 2000 characters")
     private String notes;
 }

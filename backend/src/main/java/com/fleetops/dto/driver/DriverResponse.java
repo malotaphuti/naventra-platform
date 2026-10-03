@@ -29,4 +29,5 @@ public class DriverResponse {
     private String emergencyContactNumber;
     private DriverStatus status;
     private Long assignedVehicleId;
+    private String assignedVehicleRegistration;
 }

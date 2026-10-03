@@ -58,8 +58,10 @@ public class Incident extends BaseAuditEntity {
 
     private String imageUrls;
 
+    @Column(columnDefinition = "TEXT")
     private String reviewNotes;
 
+    @Column(columnDefinition = "TEXT")
     private String resolutionNotes;
 
     @ManyToOne(fetch = FetchType.LAZY)

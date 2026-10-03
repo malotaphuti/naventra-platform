@@ -1,6 +1,7 @@
 package com.fleetops.dto.driver;
 
 import com.fleetops.entity.enums.LicenseClass;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -8,13 +9,19 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+/**
+ * Either {@code userId} (link an existing DRIVER login) or {@code newUser} (create the login in the
+ * same transaction) must be given, but not both.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class DriverCreateRequest {
 
-    @NotNull(message = "User ID is required")
     private Long userId;
+
+    @Valid
+    private DriverUserRequest newUser;
 
     @NotBlank(message = "Employee number is required")
     @Size(max = 20)
@@ -35,6 +42,7 @@ public class DriverCreateRequest {
     @Size(max = 20)
     private String contactNumber;
 
+    @Size(max = 100)
     private String emergencyContactName;
 
     @Size(max = 20)

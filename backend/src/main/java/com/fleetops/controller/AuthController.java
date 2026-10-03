@@ -46,7 +46,10 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "Logout and invalidate refresh token")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal) {
-        authService.logout(principal.getUserId());
+        // /auth/** is public, so an expired access token arrives here unauthenticated
+        if (principal != null) {
+            authService.logout(principal.getUserId());
+        }
         return ResponseEntity.noContent().build();
     }
 

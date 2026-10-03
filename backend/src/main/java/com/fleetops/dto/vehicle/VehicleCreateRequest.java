@@ -57,8 +57,10 @@ public class VehicleCreateRequest {
     @DecimalMin(value = "0.0", message = "Purchase cost must be non-negative")
     private BigDecimal purchaseCost;
 
+    @Size(max = 50)
     private String insuranceProvider;
 
+    @Size(max = 50)
     private String insurancePolicyNumber;
 
     private LocalDate insuranceExpiryDate;

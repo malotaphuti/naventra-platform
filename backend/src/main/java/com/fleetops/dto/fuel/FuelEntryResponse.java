@@ -20,6 +20,7 @@ public class FuelEntryResponse {
     private Long driverId;
     private String driverName;
     private Long tripId;
+    private String tripNumber;
     private LocalDateTime filledAt;
     private String fuelType;
     private Double litres;
@@ -29,4 +30,5 @@ public class FuelEntryResponse {
     private String station;
     private String notes;
     private String receiptUrl;
+    private LocalDateTime createdAt;
 }

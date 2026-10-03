@@ -41,7 +41,7 @@ public class Vehicle extends BaseAuditEntity {
     @Column(length = 50)
     private String variant;
 
-    @Column(name = "model_year", nullable = false)
+    @Column(name = "year", nullable = false)
     private int year;
 
     @Column(length = 30)

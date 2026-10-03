@@ -4,11 +4,15 @@ import com.fleetops.dto.vehicle.VehicleCreateRequest;
 import com.fleetops.dto.vehicle.VehicleResponse;
 import com.fleetops.dto.vehicle.VehicleUpdateRequest;
 import com.fleetops.entity.Vehicle;
+import com.fleetops.entity.enums.TripStatus;
 import com.fleetops.entity.enums.VehicleStatus;
+import com.fleetops.entity.enums.WorkOrderStatus;
 import com.fleetops.exception.BusinessRuleException;
 import com.fleetops.exception.EntityNotFoundException;
 import com.fleetops.exception.InvalidStateTransitionException;
+import com.fleetops.repository.DriverRepository;
 import com.fleetops.repository.VehicleRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,6 +30,15 @@ import java.util.*;
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
+    private final DriverRepository driverRepository;
+    private final EntityManager entityManager;
+
+    private static final Set<TripStatus> OPEN_TRIP_STATUSES = EnumSet.of(
+            TripStatus.REQUESTED, TripStatus.APPROVED, TripStatus.ALLOCATED, TripStatus.IN_PROGRESS);
+
+    private static final Set<WorkOrderStatus> OPEN_WORK_ORDER_STATUSES = EnumSet.of(
+            WorkOrderStatus.SCHEDULED, WorkOrderStatus.OPEN,
+            WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.AWAITING_PARTS);
 
     private static final Map<VehicleStatus, Set<VehicleStatus>> VALID_TRANSITIONS;
 
@@ -93,12 +106,30 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new EntityNotFoundException("Vehicle", id));
 
+        if (request.getVin() != null) {
+            String vin = StringUtils.hasText(request.getVin()) ? request.getVin().trim() : null;
+            if (vin != null && !vin.equals(vehicle.getVin()) && vehicleRepository.existsByVin(vin)) {
+                throw new BusinessRuleException("Vehicle with VIN '" + vin + "' already exists");
+            }
+            vehicle.setVin(vin);
+        }
+        if (request.getEngineNumber() != null) vehicle.setEngineNumber(request.getEngineNumber());
+        if (request.getChassisNumber() != null) vehicle.setChassisNumber(request.getChassisNumber());
+        if (StringUtils.hasText(request.getMake())) vehicle.setMake(request.getMake().trim());
+        if (StringUtils.hasText(request.getModel())) vehicle.setModel(request.getModel().trim());
+        if (request.getVariant() != null) vehicle.setVariant(request.getVariant());
+        if (request.getYear() != null) vehicle.setYear(request.getYear());
         if (request.getColor() != null) vehicle.setColor(request.getColor());
         if (request.getFuelType() != null) vehicle.setFuelType(request.getFuelType());
+        if (request.getSeatingCapacity() != null) vehicle.setSeatingCapacity(request.getSeatingCapacity());
+        if (request.getEngineCapacityCc() != null) vehicle.setEngineCapacityCc(request.getEngineCapacityCc());
+        if (request.getPurchaseDate() != null) vehicle.setPurchaseDate(request.getPurchaseDate());
+        if (request.getPurchaseCost() != null) vehicle.setPurchaseCost(request.getPurchaseCost());
         if (request.getInsuranceProvider() != null) vehicle.setInsuranceProvider(request.getInsuranceProvider());
         if (request.getInsurancePolicyNumber() != null) vehicle.setInsurancePolicyNumber(request.getInsurancePolicyNumber());
         if (request.getInsuranceExpiryDate() != null) vehicle.setInsuranceExpiryDate(request.getInsuranceExpiryDate());
         if (request.getLicenseExpiryDate() != null) vehicle.setLicenseExpiryDate(request.getLicenseExpiryDate());
+        if (request.getCurrentOdometerKm() != null) vehicle.setCurrentOdometerKm(request.getCurrentOdometerKm());
         if (request.getNextServiceDate() != null) vehicle.setNextServiceDate(request.getNextServiceDate());
         if (request.getNextServiceMileageKm() != null) vehicle.setNextServiceMileageKm(request.getNextServiceMileageKm());
 
@@ -146,6 +177,9 @@ public class VehicleService {
         }
 
         vehicle.setStatus(newStatus);
+        if (newStatus == VehicleStatus.RETIRED) {
+            releaseAssignment(vehicle);
+        }
         vehicleRepository.save(vehicle);
         log.info("Vehicle {} status changed: {} -> {} (reason: {})",
                 vehicle.getRegistrationNumber(), currentStatus, newStatus, reason);
@@ -174,10 +208,54 @@ public class VehicleService {
         if (vehicle.getStatus() == VehicleStatus.ON_TRIP) {
             throw new BusinessRuleException("Cannot delete a vehicle that is currently on a trip");
         }
+        if (vehicle.getStatus() == VehicleStatus.RESERVED) {
+            throw new BusinessRuleException("Cannot delete a reserved vehicle. Release the reservation first.");
+        }
 
+        Long openTrips = entityManager.createQuery(
+                        "SELECT COUNT(t) FROM Trip t WHERE t.vehicle.id = :id AND t.deleted = false "
+                                + "AND t.status IN :statuses", Long.class)
+                .setParameter("id", vehicleId)
+                .setParameter("statuses", OPEN_TRIP_STATUSES)
+                .getSingleResult();
+        if (openTrips > 0) {
+            throw new BusinessRuleException("Cannot delete vehicle " + vehicle.getRegistrationNumber()
+                    + ": it has " + openTrips + " open trip(s). Complete or cancel them first.");
+        }
+
+        Long openWorkOrders = entityManager.createQuery(
+                        "SELECT COUNT(w) FROM WorkOrder w WHERE w.vehicle.id = :id AND w.deleted = false "
+                                + "AND w.status IN :statuses", Long.class)
+                .setParameter("id", vehicleId)
+                .setParameter("statuses", OPEN_WORK_ORDER_STATUSES)
+                .getSingleResult();
+        if (openWorkOrders > 0) {
+            throw new BusinessRuleException("Cannot delete vehicle " + vehicle.getRegistrationNumber()
+                    + ": it has " + openWorkOrders + " open work order(s). Complete or cancel them first.");
+        }
+
+        releaseAssignment(vehicle);
         vehicle.setDeleted(true);
         vehicleRepository.save(vehicle);
         log.info("Vehicle soft deleted: {}", vehicle.getRegistrationNumber());
+    }
+
+    @Transactional(readOnly = true)
+    public VehicleStatus currentStatus(Long vehicleId) {
+        return vehicleRepository.findByIdAndDeletedFalse(vehicleId)
+                .orElseThrow(() -> new EntityNotFoundException("Vehicle", vehicleId))
+                .getStatus();
+    }
+
+    private void releaseAssignment(Vehicle vehicle) {
+        if (vehicle.getAssignedDriverId() == null) return;
+        driverRepository.findById(vehicle.getAssignedDriverId()).ifPresent(driver -> {
+            if (vehicle.getId().equals(driver.getAssignedVehicleId())) {
+                driver.setAssignedVehicleId(null);
+                driverRepository.save(driver);
+            }
+        });
+        vehicle.setAssignedDriverId(null);
     }
 
     private Specification<Vehicle> notDeleted() {
@@ -201,10 +279,16 @@ public class VehicleService {
                 .engineCapacityCc(vehicle.getEngineCapacityCc())
                 .purchaseDate(vehicle.getPurchaseDate())
                 .purchaseCost(vehicle.getPurchaseCost())
+                .insuranceProvider(vehicle.getInsuranceProvider())
+                .insurancePolicyNumber(vehicle.getInsurancePolicyNumber())
                 .insuranceExpiryDate(vehicle.getInsuranceExpiryDate())
                 .licenseExpiryDate(vehicle.getLicenseExpiryDate())
                 .currentOdometerKm(vehicle.getCurrentOdometerKm())
                 .status(vehicle.getStatus())
+                .assignedDriverId(vehicle.getAssignedDriverId())
+                .assignedDriverName(vehicle.getAssignedDriverId() == null ? null
+                        : driverRepository.findById(vehicle.getAssignedDriverId())
+                                .map(d -> d.getUser().getFullName()).orElse(null))
                 .nextServiceDate(vehicle.getNextServiceDate())
                 .nextServiceMileageKm(vehicle.getNextServiceMileageKm())
                 .createdAt(vehicle.getCreatedAt())

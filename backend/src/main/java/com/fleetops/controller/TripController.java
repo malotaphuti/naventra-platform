@@ -25,17 +25,17 @@ public class TripController {
     private final TripService tripService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('FLEET_MANAGER', 'DRIVER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER')")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new trip request")
     public TripResponse createTrip(
             @Valid @RequestBody TripCreateRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return tripService.createTrip(request, principal.getUserId());
+        return tripService.createTrip(request, principal);
     }
 
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasRole('FLEET_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER')")
     @Operation(summary = "Approve a trip request")
     public TripResponse approveTrip(
             @PathVariable Long id,
@@ -44,7 +44,7 @@ public class TripController {
     }
 
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasRole('FLEET_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER')")
     @Operation(summary = "Reject a trip request")
     public TripResponse rejectTrip(
             @PathVariable Long id,
@@ -54,45 +54,58 @@ public class TripController {
     }
 
     @PutMapping("/{id}/start")
-    @PreAuthorize("hasAnyRole('FLEET_MANAGER', 'DRIVER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER')")
     @Operation(summary = "Start a trip")
     public TripResponse startTrip(
             @PathVariable Long id,
-            @Valid @RequestBody TripStartRequest request) {
-        return tripService.startTrip(id, request);
+            @Valid @RequestBody TripStartRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return tripService.startTrip(id, request, principal);
     }
 
     @PutMapping("/{id}/end")
-    @PreAuthorize("hasAnyRole('FLEET_MANAGER', 'DRIVER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER')")
     @Operation(summary = "End a trip")
     public TripResponse endTrip(
             @PathVariable Long id,
-            @Valid @RequestBody TripEndRequest request) {
-        return tripService.endTrip(id, request);
+            @Valid @RequestBody TripEndRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return tripService.endTrip(id, request, principal);
     }
 
     @PutMapping("/{id}/close")
-    @PreAuthorize("hasRole('FLEET_MANAGER')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER')")
     @Operation(summary = "Close a completed trip")
     public TripResponse closeTrip(@PathVariable Long id) {
         return tripService.closeTrip(id);
     }
 
+    @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER')")
+    @Operation(summary = "Cancel a requested or approved trip")
+    public TripResponse cancelTrip(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return tripService.cancelTrip(id, reason, principal);
+    }
+
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('FLEET_MANAGER', 'DRIVER', 'EXECUTIVE')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER', 'EXECUTIVE')")
     @Operation(summary = "Get trip by ID")
-    public TripResponse getTrip(@PathVariable Long id) {
-        return tripService.getTrip(id);
+    public TripResponse getTrip(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return tripService.getTrip(id, principal);
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('FLEET_MANAGER', 'DRIVER', 'EXECUTIVE')")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER', 'EXECUTIVE')")
     @Operation(summary = "Search trips with filters")
     public Page<TripResponse> searchTrips(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) TripStatus status,
             @RequestParam(required = false) Long driverId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return tripService.searchTrips(search, status, driverId, pageable);
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return tripService.searchTrips(search, status, driverId, pageable, principal);
     }
 }

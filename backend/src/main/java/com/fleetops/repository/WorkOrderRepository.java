@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +29,16 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long>, Jpa
 
     long countByStatusAndDeletedFalse(WorkOrderStatus status);
 
+    long countByStatusInAndDeletedFalse(Collection<WorkOrderStatus> statuses);
+
+    List<WorkOrder> findTop8ByStatusInAndDeletedFalseOrderByScheduledDateAsc(Collection<WorkOrderStatus> statuses);
+
     @Query("SELECT COALESCE(SUM(w.totalCost), 0) FROM WorkOrder w WHERE w.deleted = false " +
            "AND w.completedDate >= :from AND w.completedDate <= :to")
     BigDecimal sumCostBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    Optional<WorkOrder> findTopByWorkOrderNumberStartingWithOrderByWorkOrderNumberDesc(String prefix);
+
+    long countByVehicleIdAndStatusInAndIdNotAndDeletedFalse(
+            Long vehicleId, Collection<WorkOrderStatus> statuses, Long excludedId);
 }

@@ -37,7 +37,7 @@ public class WorkOrder extends BaseAuditEntity {
     @Builder.Default
     private WorkOrderStatus status = WorkOrderStatus.SCHEDULED;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     private String serviceType;
@@ -62,8 +62,10 @@ public class WorkOrder extends BaseAuditEntity {
 
     private String invoiceUrl;
 
+    @Column(columnDefinition = "TEXT")
     private String partsUsed;
 
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
     private LocalDate nextServiceDate;
