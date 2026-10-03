@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { DriverDashboard, VehicleSummary } from '../../dashboard/dashboard.models';
 
 @Component({
   selector: 'app-my-vehicle',
@@ -75,11 +76,15 @@ export class MyVehicleComponent implements OnInit {
   private readonly http = inject(HttpClient);
 
   readonly loading = signal(true);
-  readonly vehicle = signal<any>(null);
+  readonly vehicle = signal<VehicleSummary | null>(null);
 
   ngOnInit(): void {
-    // TODO: Add backend endpoint GET /api/v1/drivers/me/vehicle
-    // For now show empty state
-    this.loading.set(false);
+    this.http.get<DriverDashboard>('/api/v1/dashboard/driver').subscribe({
+      next: (data) => {
+        this.vehicle.set(data.assignedVehicle);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false)
+    });
   }
 }

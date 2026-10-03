@@ -47,6 +47,18 @@ export const routes: Routes = [
         data: { roles: ['DRIVER'] }
       },
       {
+        path: 'my-trips/new',
+        loadComponent: () => import('./features/trips/trip-form/trip-form.component').then(m => m.TripFormComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['DRIVER'] }
+      },
+      {
+        path: 'my-trips/:id',
+        loadComponent: () => import('./features/trips/trip-detail/trip-detail.component').then(m => m.TripDetailComponent),
+        canActivate: [roleGuard],
+        data: { roles: ['DRIVER'] }
+      },
+      {
         path: 'fuel',
         loadChildren: () => import('./features/fuel/fuel.routes').then(m => m.FUEL_ROUTES),
         canActivate: [roleGuard],
@@ -62,7 +74,7 @@ export const routes: Routes = [
         path: 'incidents',
         loadChildren: () => import('./features/incidents/incidents.routes').then(m => m.INCIDENT_ROUTES),
         canActivate: [roleGuard],
-        data: { roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER'] }
+        data: { roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER', 'MAINTENANCE_OFFICER'] }
       },
       {
         path: 'tracking',

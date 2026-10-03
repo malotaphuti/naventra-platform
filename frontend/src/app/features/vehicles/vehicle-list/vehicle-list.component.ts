@@ -1,7 +1,8 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,167 +10,140 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { MatChipsModule } from '@angular/material/chips';
-import { FormsModule } from '@angular/forms';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthStore } from '../../../core/stores/auth.store';
-
-interface Vehicle {
-  id: number;
-  registrationNumber: string;
-  make: string;
-  model: string;
-  year: number;
-  status: string;
-  fuelType: string;
-  currentOdometerKm: number;
-}
-
-interface Page<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import { Page } from '../../../core/models/page.model';
+import { expiryTone, humanize } from '../../dashboard/dashboard.models';
+import { VEHICLE_STATUSES, Vehicle } from '../vehicle.models';
 
 @Component({
   selector: 'app-vehicle-list',
   standalone: true,
   imports: [
-    CommonModule, RouterModule, FormsModule,
-    MatTableModule, MatButtonModule, MatIconModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatPaginatorModule, MatChipsModule
+    CommonModule, RouterModule, FormsModule, MatTableModule, MatButtonModule, MatIconModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatPaginatorModule, MatProgressSpinnerModule
   ],
   template: `
-    <div class="page-header">
-      <h1>Vehicles</h1>
-      @if (canRegister()) {
-        <button mat-raised-button color="primary" routerLink="new">
-          <mat-icon>add</mat-icon> Register Vehicle
-        </button>
+    <div class="page-head">
+      <div>
+        <h1>Vehicles</h1>
+        <p>The fleet register: status, assignment and compliance.</p>
+      </div>
+      @if (canCreate) {
+        <div class="head-actions">
+          <a mat-flat-button color="primary" routerLink="new"><mat-icon>add</mat-icon> Add vehicle</a>
+        </div>
       }
     </div>
 
     <div class="filters">
-      <mat-form-field appearance="outline">
+      <mat-form-field appearance="outline" class="grow">
         <mat-label>Search</mat-label>
-        <input matInput [(ngModel)]="searchTerm" (keyup.enter)="search()" placeholder="Registration, make, model...">
+        <input matInput [(ngModel)]="search" (keyup.enter)="reload()" placeholder="Registration, make, model, VIN">
         <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
-
       <mat-form-field appearance="outline">
         <mat-label>Status</mat-label>
-        <mat-select [(ngModel)]="statusFilter" (selectionChange)="search()">
-          <mat-option [value]="null">All</mat-option>
-          <mat-option value="AVAILABLE">Available</mat-option>
-          <mat-option value="ON_TRIP">On Trip</mat-option>
-          <mat-option value="MAINTENANCE">Maintenance</mat-option>
-          <mat-option value="OUT_OF_SERVICE">Out of Service</mat-option>
-          <mat-option value="RETIRED">Retired</mat-option>
+        <mat-select [(ngModel)]="status" (selectionChange)="reload()">
+          <mat-option [value]="null">All statuses</mat-option>
+          @for (s of statuses; track s) { <mat-option [value]="s">{{ label(s) }}</mat-option> }
         </mat-select>
       </mat-form-field>
     </div>
 
-    <table mat-table [dataSource]="vehicles()" class="mat-elevation-z2 full-width">
-      <ng-container matColumnDef="registrationNumber">
-        <th mat-header-cell *matHeaderCellDef>Registration</th>
-        <td mat-cell *matCellDef="let v">{{ v.registrationNumber }}</td>
-      </ng-container>
+    <div class="table-wrap">
+      <table mat-table [dataSource]="vehicles()">
+        <ng-container matColumnDef="registration">
+          <th mat-header-cell *matHeaderCellDef>Registration</th>
+          <td mat-cell *matCellDef="let v"><strong>{{ v.registrationNumber }}</strong></td>
+        </ng-container>
+        <ng-container matColumnDef="vehicle">
+          <th mat-header-cell *matHeaderCellDef>Vehicle</th>
+          <td mat-cell *matCellDef="let v">{{ v.make }} {{ v.model }} <span class="sub">{{ v.year }}</span></td>
+        </ng-container>
+        <ng-container matColumnDef="driver">
+          <th mat-header-cell *matHeaderCellDef>Driver</th>
+          <td mat-cell *matCellDef="let v">{{ v.assignedDriverName || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="odometer">
+          <th mat-header-cell *matHeaderCellDef>Odometer</th>
+          <td mat-cell *matCellDef="let v">{{ v.currentOdometerKm | number }} km</td>
+        </ng-container>
+        <ng-container matColumnDef="licence">
+          <th mat-header-cell *matHeaderCellDef>Licence disc</th>
+          <td mat-cell *matCellDef="let v">
+            @if (v.licenseExpiryDate) {
+              <span class="pill" [ngClass]="tone(v.licenseExpiryDate)">{{ v.licenseExpiryDate | date:'d MMM y' }}</span>
+            } @else { — }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let v"><span class="pill" [attr.data-status]="v.status">{{ label(v.status) }}</span></td>
+        </ng-container>
 
-      <ng-container matColumnDef="make">
-        <th mat-header-cell *matHeaderCellDef>Make</th>
-        <td mat-cell *matCellDef="let v">{{ v.make }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="model">
-        <th mat-header-cell *matHeaderCellDef>Model</th>
-        <td mat-cell *matCellDef="let v">{{ v.model }} ({{ v.year }})</td>
-      </ng-container>
-
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let v">
-          <mat-chip [class]="'status-' + v.status.toLowerCase()">{{ v.status }}</mat-chip>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="odometer">
-        <th mat-header-cell *matHeaderCellDef>Odometer</th>
-        <td mat-cell *matCellDef="let v">{{ v.currentOdometerKm | number }} km</td>
-      </ng-container>
-
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
-        <td mat-cell *matCellDef="let v">
-          <button mat-icon-button [routerLink]="[v.id]" aria-label="View vehicle">
-            <mat-icon>visibility</mat-icon>
-          </button>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-
-    <mat-paginator
-      [length]="totalElements()"
-      [pageSize]="20"
-      [pageSizeOptions]="[10, 20, 50]"
-      (page)="onPageChange($event)">
-    </mat-paginator>
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="open(row)"></tr>
+      </table>
+      @if (loading()) {
+        <div class="loading-container"><mat-spinner diameter="36"></mat-spinner></div>
+      } @else if (!vehicles().length) {
+        <div class="empty"><mat-icon>directions_car</mat-icon>No vehicles match your filters.</div>
+      }
+      <mat-paginator [length]="total()" [pageIndex]="page" [pageSize]="size" [pageSizeOptions]="[10, 20, 50]"
+                     (page)="onPage($event)"></mat-paginator>
+    </div>
   `,
-  styles: [`
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-    .filters { display: flex; gap: 1rem; margin-bottom: 1rem; }
-    .full-width { width: 100%; }
-    .status-available { background: #c8e6c9 !important; }
-    .status-on_trip { background: #bbdefb !important; }
-    .status-maintenance { background: #ffe0b2 !important; }
-    .status-out_of_service { background: #ffcdd2 !important; }
-    .status-retired { background: #e0e0e0 !important; }
-  `]
+  styles: [`.sub { color: var(--fo-muted); font-size: 0.8rem; }`]
 })
 export class VehicleListComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly authStore = inject(AuthStore);
 
   readonly vehicles = signal<Vehicle[]>([]);
-  readonly totalElements = signal(0);
-  readonly displayedColumns = ['registrationNumber', 'make', 'model', 'status', 'odometer', 'actions'];
-  readonly canRegister = computed(() => this.authStore.hasAnyRole(['SYSTEM_ADMIN', 'FLEET_MANAGER']));
+  readonly total = signal(0);
+  readonly loading = signal(false);
+  readonly columns = ['registration', 'vehicle', 'driver', 'odometer', 'licence', 'status'];
+  readonly statuses = VEHICLE_STATUSES;
+  readonly canCreate = this.authStore.hasAnyRole(['SYSTEM_ADMIN', 'FLEET_MANAGER']);
+  readonly label = humanize;
+  readonly tone = expiryTone;
 
-  searchTerm = '';
-  statusFilter: string | null = null;
+  search = '';
+  status: string | null = null;
   page = 0;
   size = 20;
 
-  ngOnInit(): void {
-    this.search();
+  ngOnInit(): void { this.load(); }
+
+  reload(): void {
+    this.page = 0;
+    this.load();
   }
 
-  search(): void {
-    let params = new HttpParams()
-      .set('page', this.page.toString())
-      .set('size', this.size.toString());
-
-    if (this.searchTerm) params = params.set('search', this.searchTerm);
-    if (this.statusFilter) params = params.set('status', this.statusFilter);
-
-    this.http.get<Page<Vehicle>>('/api/v1/vehicles', { params }).subscribe(response => {
-      this.vehicles.set(response.content);
-      this.totalElements.set(response.totalElements);
+  load(): void {
+    let params = new HttpParams().set('page', this.page).set('size', this.size).set('sort', 'registrationNumber,asc');
+    if (this.search.trim()) params = params.set('search', this.search.trim());
+    if (this.status) params = params.set('status', this.status);
+    this.loading.set(true);
+    this.http.get<Page<Vehicle>>('/api/v1/vehicles', { params }).subscribe({
+      next: r => {
+        this.vehicles.set(r.content);
+        this.total.set(r.totalElements);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false)
     });
   }
 
-  onPageChange(event: PageEvent): void {
-    this.page = event.pageIndex;
-    this.size = event.pageSize;
-    this.search();
+  onPage(e: PageEvent): void {
+    this.page = e.pageIndex;
+    this.size = e.pageSize;
+    this.load();
+  }
+
+  open(v: Vehicle): void {
+    this.router.navigate(['/vehicles', v.id]);
   }
 }

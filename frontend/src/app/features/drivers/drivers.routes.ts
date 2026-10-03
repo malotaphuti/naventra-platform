@@ -10,6 +10,10 @@ export const DRIVER_ROUTES: Routes = [
     loadComponent: () => import('./driver-form/driver-form.component').then(m => m.DriverFormComponent)
   },
   {
+    path: ':id/edit',
+    loadComponent: () => import('./driver-form/driver-form.component').then(m => m.DriverFormComponent)
+  },
+  {
     path: ':id',
     loadComponent: () => import('./driver-detail/driver-detail.component').then(m => m.DriverDetailComponent)
   }

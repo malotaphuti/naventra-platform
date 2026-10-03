@@ -8,5 +8,9 @@ export const MAINTENANCE_ROUTES: Routes = [
   {
     path: 'new',
     loadComponent: () => import('./maintenance-form/maintenance-form.component').then(m => m.MaintenanceFormComponent)
+  },
+  {
+    path: ':id',
+    loadComponent: () => import('./work-order-detail/work-order-detail.component').then(m => m.WorkOrderDetailComponent)
   }
 ];

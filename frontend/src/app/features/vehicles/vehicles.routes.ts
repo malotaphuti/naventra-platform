@@ -13,6 +13,12 @@ export const VEHICLE_ROUTES: Routes = [
     data: { roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER'] }
   },
   {
+    path: ':id/edit',
+    loadComponent: () => import('./vehicle-form/vehicle-form.component').then(m => m.VehicleFormComponent),
+    canActivate: [roleGuard],
+    data: { roles: ['SYSTEM_ADMIN', 'FLEET_MANAGER'] }
+  },
+  {
     path: ':id',
     loadComponent: () => import('./vehicle-detail/vehicle-detail.component').then(m => m.VehicleDetailComponent)
   }

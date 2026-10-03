@@ -2,7 +2,6 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,7 +15,6 @@ import { AuthService } from '../../../core/services/auth.service';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatCardModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -24,15 +22,17 @@ import { AuthService } from '../../../core/services/auth.service';
     MatProgressSpinnerModule
   ],
   template: `
-    <div class="login-container">
-      <mat-card class="login-card">
-        <mat-card-header>
-          <mat-card-title>
-            <h1 class="app-title">FleetOps</h1>
-            <p class="app-subtitle">Enterprise Fleet Management</p>
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
+    <div class="login-page">
+      <div class="center">
+        <div class="logo">
+          <span class="logo-mark"><mat-icon>local_shipping</mat-icon></span>
+          <span class="logo-text">FleetOps</span>
+        </div>
+
+        <div class="login-card">
+          <h2>Welcome back</h2>
+          <p class="hint">Sign in to your FleetOps account</p>
+
           <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Username</mat-label>
@@ -62,55 +62,68 @@ import { AuthService } from '../../../core/services/auth.service';
               <div class="error-message">{{ errorMessage() }}</div>
             }
 
-            <button mat-raised-button color="primary" type="submit" class="full-width login-btn"
+            <button mat-flat-button color="primary" type="submit" class="full-width login-btn"
                     [disabled]="loading() || loginForm.invalid">
               @if (loading()) {
                 <mat-spinner diameter="20"></mat-spinner>
               } @else {
-                Login
+                Sign in
               }
             </button>
           </form>
-        </mat-card-content>
-      </mat-card>
+        </div>
+      </div>
+
+      <small class="copyright">© {{ year }} FleetOps · Enterprise Fleet Management</small>
     </div>
   `,
   styles: [`
-    .login-container {
+    .login-page {
+      position: relative;
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+      padding: 2rem 1rem 3.5rem;
+      color: #fff;
+      background:
+        radial-gradient(ellipse at center, rgba(6, 12, 24, 0.55) 0%, rgba(6, 12, 24, 0.85) 75%),
+        url('/assets/images/fleet-bg.jpg') center / cover no-repeat fixed;
+    }
+    .center { display: flex; flex-direction: column; align-items: center; gap: 1.75rem; width: 100%; max-width: 420px; }
+    .logo { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-mark {
+      display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #14b8a6, #22d3ee);
+      box-shadow: 0 8px 24px rgba(34, 211, 238, 0.35);
+    }
+    .logo-text { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+    .copyright {
+      position: absolute; bottom: 1.25rem; left: 0; right: 0;
+      text-align: center; color: rgba(255, 255, 255, 0.55);
     }
     .login-card {
-      width: 100%;
-      max-width: 400px;
-      padding: 2rem;
+      width: 100%; padding: 2.5rem 2.25rem; border-radius: 20px; color: #0f172a; text-align: left;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.5);
     }
-    .app-title {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #1a237e;
-      margin: 0;
-      text-align: center;
-    }
-    .app-subtitle {
-      text-align: center;
-      color: #666;
-      margin-bottom: 1.5rem;
-    }
+    .login-card h2 { margin: 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; text-align: center; }
+    .hint { margin: 0.35rem 0 1.75rem; color: #64748b; text-align: center; }
     .full-width { width: 100%; }
-    .login-btn { height: 48px; font-size: 16px; margin-top: 1rem; }
+    .login-btn { height: 50px; font-size: 1rem; font-weight: 600; margin-top: 0.75rem; }
     .error-message {
-      color: #f44336;
-      text-align: center;
-      margin: 0.5rem 0;
-      font-size: 14px;
+      color: #b91c1c; background: #fee2e2; border-radius: 10px;
+      padding: 0.6rem 0.8rem; margin: 0.25rem 0 0.5rem; font-size: 0.85rem; text-align: center;
+    }
+    @media (max-width: 480px) {
+      .login-card { padding: 2rem 1.5rem; }
     }
   `]
 })
 export class LoginComponent {
+  readonly year = new Date().getFullYear();
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
