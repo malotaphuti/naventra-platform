@@ -1,5 +1,7 @@
 package com.fleetops.dto.driver;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fleetops.dto.admin.CredentialsDelivery;
 import com.fleetops.entity.enums.DriverStatus;
 import com.fleetops.entity.enums.LicenseClass;
 import lombok.AllArgsConstructor;
@@ -30,4 +32,8 @@ public class DriverResponse {
     private DriverStatus status;
     private Long assignedVehicleId;
     private String assignedVehicleRegistration;
+
+    /** Only when registering a driver with a new login: how the temporary password was delivered. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private CredentialsDelivery credentials;
 }

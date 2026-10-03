@@ -1,3 +1,5 @@
+import { CredentialsDelivery } from '../../shared/dialogs/credentials-dialog.component';
+
 export interface Driver {
   id: number;
   userId: number;
@@ -14,6 +16,8 @@ export interface Driver {
   status: string;
   assignedVehicleId: number | null;
   assignedVehicleRegistration: string | null;
+  /** Only when a driver was registered with a new login. */
+  credentials?: CredentialsDelivery;
 }
 
 export interface EligibleUser {

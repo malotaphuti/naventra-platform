@@ -5,7 +5,11 @@
 .DESCRIPTION
   Run from the extracted release bundle, in an *Administrator* PowerShell:
 
-    powershell -ExecutionPolicy Bypass -File .\install-fleetops.ps1 -Domain naventra-fleetops.duckdns.org -AcmeEmail you@example.com
+    Set-ExecutionPolicy -Scope Process Bypass -Force
+    .\install-fleetops.ps1 -Domain 'fleetops.example.duckdns.org' -AcmeEmail 'you@example.com'
+
+  Optional e-mail (sign-in details for new users), e.g. Gmail with an App Password:
+    .\install-fleetops.ps1 -Domain '...' -AcmeEmail '...' -SmtpUser 'you@gmail.com' -SmtpPassword 'abcd efgh ijkl mnop'
 
   What it does (safe to re-run; a re-run with a newer bundle performs an update):
     1. Installs Chocolatey, then Java 21 (Temurin), PostgreSQL 16, Caddy and NSSM.
@@ -24,7 +28,14 @@
 param(
     [Parameter(Mandatory = $true)] [string] $Domain,
     [Parameter(Mandatory = $true)] [string] $AcmeEmail,
-    [string] $TimeZoneId = 'Africa/Johannesburg'
+    [string] $TimeZoneId = 'Africa/Johannesburg',
+    # Optional e-mail (SMTP) so new users receive their sign-in details. Values are kept in secrets.json,
+    # so later runs (updates) can omit them. Gmail: smtp.gmail.com / 587 / your address / a Google App Password.
+    [string] $SmtpHost = 'smtp.gmail.com',
+    [int] $SmtpPort = 587,
+    [string] $SmtpUser,
+    [string] $SmtpPassword,
+    [string] $MailFrom
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,6 +66,9 @@ function Find-Exe([string] $Folder, [string] $Name, [string] $Like = '*') {
 }
 
 # ------------------------------------------------------------------ checks
+if ($Domain -notmatch '^[a-z0-9-]+(\.[a-z0-9-]+)+$') {
+    throw "Domain '$Domain' is not a full host name (e.g. fleetops-za.duckdns.org). Put it in quotes: -Domain 'name.duckdns.org'"
+}
 Step 'Checking the release bundle'
 foreach ($p in "$Bundle\app\fleetops-backend.jar", "$Bundle\www\index.html") {
     if (-not (Test-Path $p)) { throw "Missing $p - run this script from the extracted release folder." }
@@ -77,6 +91,22 @@ if (Test-Path $secretsFile) {
     $secrets | ConvertTo-Json | Set-Content -Encoding UTF8 $secretsFile
     icacls $secretsFile /inheritance:r /grant:r 'Administrators:F' 'SYSTEM:F' | Out-Null
     Ok "Generated new secrets in $secretsFile (Administrators only)"
+}
+
+# E-mail settings: new values win; otherwise keep what an earlier run saved
+foreach ($p in 'SmtpHost', 'SmtpPort', 'SmtpUser', 'SmtpPassword', 'MailFrom') {
+    if (-not ($secrets.PSObject.Properties.Name -contains $p)) { $secrets | Add-Member -NotePropertyName $p -NotePropertyValue $null }
+}
+if ($SmtpUser) {
+    $secrets.SmtpHost = $SmtpHost; $secrets.SmtpPort = $SmtpPort; $secrets.SmtpUser = $SmtpUser
+    if ($SmtpPassword) { $secrets.SmtpPassword = $SmtpPassword }
+    $secrets.MailFrom = $(if ($MailFrom) { $MailFrom } else { "FleetOps <$SmtpUser>" })
+    $secrets | ConvertTo-Json | Set-Content -Encoding UTF8 $secretsFile
+}
+if ($secrets.SmtpUser -and $secrets.SmtpPassword) {
+    Ok "E-mail: sending as $($secrets.SmtpUser) via $($secrets.SmtpHost):$($secrets.SmtpPort)"
+} else {
+    Write-Host '    E-mail not configured: new users'' temporary passwords will be shown to the admin instead.' -ForegroundColor Yellow
 }
 
 # ------------------------------------------------------------------ software
@@ -202,7 +232,13 @@ Set-Service-Config $BackendSvc $java "-XX:MaxRAMPercentage=40 -jar `"$Root\app\f
     "FLEETOPS_TIMEZONE=$TimeZoneId",
     "UPLOAD_PATH=$Root\uploads",
     'SPRINGDOC_API_DOCS_ENABLED=false', 'SPRINGDOC_SWAGGER_UI_ENABLED=false',
-    "SPRING_AUTOCONFIGURE_EXCLUDE=$redisOff"
+    "SPRING_AUTOCONFIGURE_EXCLUDE=$redisOff",
+    "APP_URL=https://$Domain",
+    "MAIL_HOST=$(if ($secrets.SmtpHost) { $secrets.SmtpHost } else { 'smtp.gmail.com' })",
+    "MAIL_PORT=$(if ($secrets.SmtpPort) { $secrets.SmtpPort } else { 587 })",
+    "MAIL_USERNAME=$($secrets.SmtpUser)",
+    "MAIL_PASSWORD=$($secrets.SmtpPassword)",
+    "MAIL_FROM=$($secrets.MailFrom)"
 ) "$Root\logs\backend.log"
 & $nssm set $BackendSvc DependOnService $pgService.Name | Out-Null
 Ok "$BackendSvc registered"

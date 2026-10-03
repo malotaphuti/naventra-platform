@@ -66,6 +66,9 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Link used in account e-mails (temporary passwords)
+      APP_URL: https://${DOMAIN}
       UPLOAD_PATH: /app/uploads
       # API docs are for development; keep them off on the public internet
       SPRINGDOC_API_DOCS_ENABLED: "false"

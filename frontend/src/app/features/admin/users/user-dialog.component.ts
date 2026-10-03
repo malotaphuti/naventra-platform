@@ -7,7 +7,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ROLE_LABELS } from '../../../core/layout/shell/shell.component';
-import { PASSWORD_HINT, PASSWORD_PATTERN } from '../../drivers/driver.models';
 import { AdminUser, ROLES } from './user.models';
 
 export interface UserDialogData {
@@ -48,23 +47,22 @@ export interface UserDialogData {
           @if (roleLocked) { <mat-hint>{{ data.self ? 'You cannot change your own role' : 'Has a driver profile' }}</mat-hint> }
         </mat-form-field>
         @if (!editing) {
-          <mat-form-field appearance="outline">
-            <mat-label>Initial password</mat-label>
-            <input matInput type="password" formControlName="password" autocomplete="new-password">
-            <mat-hint>{{ passwordHint }}</mat-hint>
-            <mat-error>{{ passwordHint }}</mat-error>
-          </mat-form-field>
+          <p class="note">
+            FleetOps generates a temporary password and e-mails the sign-in details to this address.
+            The user must choose their own password the first time they sign in.
+          </p>
         }
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
       <button mat-flat-button color="primary" (click)="save()" [disabled]="form.invalid || saving()">
-        {{ saving() ? 'Saving…' : (editing ? 'Save' : 'Create user') }}
+        {{ saving() ? 'Saving…' : (editing ? 'Save' : 'Create and e-mail details') }}
       </button>
     </mat-dialog-actions>
   `,
-  styles: [`.grid { display: flex; flex-direction: column; width: 100%; padding-top: 0.5rem; } .grid mat-form-field { width: 100%; }`]
+  styles: [`.grid { display: flex; flex-direction: column; width: 100%; padding-top: 0.5rem; } .grid mat-form-field { width: 100%; }
+    .note { margin: 0; padding: 0.7rem 0.85rem; border-radius: 10px; background: #f0fdfa; color: #134e4a; font-size: 0.85rem; line-height: 1.45; }`]
 })
 export class UserDialogComponent {
   readonly data = inject<UserDialogData>(MAT_DIALOG_DATA);
@@ -76,21 +74,18 @@ export class UserDialogComponent {
   readonly roleLocked = !!this.data.self || !!this.data.user?.hasDriverProfile;
   readonly roles = ROLES;
   readonly roleLabels = ROLE_LABELS;
-  readonly passwordHint = PASSWORD_HINT;
   readonly saving = signal(false);
 
   readonly form = this.fb.group({
     username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50), Validators.pattern(/^[a-zA-Z0-9_.]+$/)]],
     fullName: [this.data.user?.fullName ?? '', [Validators.required, Validators.maxLength(100)]],
     email: [this.data.user?.email ?? '', [Validators.required, Validators.email]],
-    role: [this.data.user?.role ?? 'FLEET_MANAGER', Validators.required],
-    password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]]
+    role: [this.data.user?.role ?? 'FLEET_MANAGER', Validators.required]
   });
 
   constructor() {
     if (this.editing) {
       this.form.controls.username.disable();
-      this.form.controls.password.disable();
       if (this.roleLocked) this.form.controls.role.disable();
     }
   }
@@ -109,8 +104,7 @@ export class UserDialogComponent {
           username: v.username?.trim(),
           fullName: v.fullName?.trim(),
           email: v.email?.trim(),
-          role: v.role,
-          password: v.password
+          role: v.role
         });
     request$.subscribe({
       next: user => this.ref.close(user),

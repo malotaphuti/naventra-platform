@@ -1,3 +1,5 @@
+import { CredentialsDelivery } from '../../../shared/dialogs/credentials-dialog.component';
+
 export interface AdminUser {
   id: number;
   username: string;
@@ -11,6 +13,9 @@ export interface AdminUser {
   lastLoginAt: string | null;
   createdAt: string | null;
   hasDriverProfile: boolean;
+  mustChangePassword: boolean;
+  /** Only on create / reset-password responses. */
+  credentials?: CredentialsDelivery;
 }
 
 export const ROLES = ['SYSTEM_ADMIN', 'FLEET_MANAGER', 'DRIVER', 'MAINTENANCE_OFFICER', 'EXECUTIVE'];

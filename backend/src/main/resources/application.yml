@@ -50,6 +50,10 @@ spring:
           auth: true
           starttls:
             enable: true
+          # Don't let a slow or unreachable mail server hang the "create user" request
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
   servlet:
     multipart:
@@ -81,10 +85,19 @@ fleetops:
     access-token-expiry: 900 # 15 minutes in seconds
     refresh-token-expiry: 604800 # 7 days in seconds
 
+  # Public address of the app, used in links inside e-mails
+  app-url: ${APP_URL:http://localhost:4200}
+
+  mail:
+    # Sender address for account e-mails; defaults to the SMTP username
+    from: ${MAIL_FROM:}
+
   security:
     max-failed-attempts: 5
     lock-duration-minutes: 30
     password-min-length: 8
+    # How long an administrator-issued temporary password stays valid
+    temp-password-hours: ${TEMP_PASSWORD_HOURS:72}
 
   file-upload:
     base-path: ${UPLOAD_PATH:./uploads}

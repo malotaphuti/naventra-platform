@@ -14,7 +14,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { NotifyService } from '../../../core/services/notify.service';
 import { toLocalDate } from '../../../core/models/page.model';
-import { Driver, EligibleUser, LICENSE_CLASSES, PASSWORD_HINT, PASSWORD_PATTERN } from '../driver.models';
+import { Driver, EligibleUser, LICENSE_CLASSES } from '../driver.models';
+import { DialogService } from '../../../shared/dialogs/dialog.service';
 
 type AccountMode = 'new' | 'existing';
 
@@ -64,12 +65,10 @@ type AccountMode = 'new' | 'existing';
                 <input matInput formControlName="username" maxlength="50" autocomplete="off">
                 <mat-error>3–50 letters, digits, dots or underscores</mat-error>
               </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Initial password</mat-label>
-                <input matInput type="password" formControlName="password" autocomplete="new-password">
-                <mat-hint>{{ passwordHint }}</mat-hint>
-                <mat-error>{{ passwordHint }}</mat-error>
-              </mat-form-field>
+              <p class="note">
+                A temporary password is generated and e-mailed to the driver, who must choose their own
+                at first sign-in.
+              </p>
             </div>
           } @else {
             <div class="form-grid">
@@ -147,7 +146,9 @@ type AccountMode = 'new' | 'existing';
       </form>
     }
   `,
-  styles: [`.mode { margin-bottom: 1.25rem; }`]
+  styles: [`.mode { margin-bottom: 1.25rem; }
+    .note { margin: 0 0 1rem; padding: 0.7rem 0.85rem; border-radius: 10px; background: #f0fdfa; color: #134e4a;
+            font-size: 0.85rem; line-height: 1.45; align-self: center; }`]
 })
 export class DriverFormComponent implements OnInit {
   private readonly http = inject(HttpClient);
@@ -155,6 +156,7 @@ export class DriverFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   private readonly notify = inject(NotifyService);
+  private readonly dialogs = inject(DialogService);
 
   readonly editId: number | null = this.route.snapshot.params['id'] ? Number(this.route.snapshot.params['id']) : null;
   readonly mode = signal<AccountMode>('new');
@@ -162,7 +164,6 @@ export class DriverFormComponent implements OnInit {
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly licenseClasses = LICENSE_CLASSES;
-  readonly passwordHint = PASSWORD_HINT;
   readonly tomorrow = new Date(Date.now() + 86_400_000);
 
   readonly form = this.fb.group({
@@ -170,8 +171,7 @@ export class DriverFormComponent implements OnInit {
     newUser: this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(100)]],
       email: ['', [Validators.required, Validators.email]],
-      username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50), Validators.pattern(/^[a-zA-Z0-9_.]+$/)]],
-      password: ['', [Validators.required, Validators.minLength(8), Validators.pattern(PASSWORD_PATTERN)]]
+      username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50), Validators.pattern(/^[a-zA-Z0-9_.]+$/)]]
     }),
     fullName: [''],
     employeeNumber: ['', [Validators.required, Validators.maxLength(20)]],
@@ -251,6 +251,10 @@ export class DriverFormComponent implements OnInit {
       next: d => {
         this.notify.success(this.editId ? 'Driver updated' : 'Driver registered');
         this.router.navigate(['/drivers', d.id]);
+        if (d.credentials) {
+          this.dialogs.credentials({ username: v.newUser.username ?? '', fullName: d.fullName, credentials: d.credentials })
+            .subscribe();
+        }
       },
       error: () => this.saving.set(false)
     });

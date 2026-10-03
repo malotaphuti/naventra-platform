@@ -27,8 +27,5 @@ public class UserCreateRequest {
     @NotNull(message = "Role is required")
     private UserRole role;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE)
-    private String password;
+    // No password: FleetOps generates a temporary one, e-mails it, and the user must change it at first sign-in.
 }

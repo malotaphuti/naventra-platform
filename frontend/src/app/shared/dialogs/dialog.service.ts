@@ -3,6 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { Observable } from 'rxjs';
 import { ConfirmDialogComponent, ConfirmDialogData } from './confirm-dialog.component';
 import { PromptDialogComponent, PromptDialogData } from './prompt-dialog.component';
+import { CredentialsDialogComponent, CredentialsDialogData } from './credentials-dialog.component';
 
 /**
  * Shared dialogs.
@@ -19,5 +20,11 @@ export class DialogService {
 
   prompt(data: PromptDialogData): Observable<string | number | null> {
     return this.dialog.open(PromptDialogComponent, { data, width: '480px' }).afterClosed();
+  }
+
+  /** After creating a login or resetting a password: e-mailed confirmation, or the one-time temporary password. */
+  credentials(data: CredentialsDialogData): Observable<void> {
+    return this.dialog.open(CredentialsDialogComponent, { data, width: '500px', disableClose: !data.credentials.credentialsEmailed })
+      .afterClosed();
   }
 }

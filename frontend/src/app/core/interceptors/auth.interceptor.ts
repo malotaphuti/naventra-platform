@@ -55,7 +55,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
 
-      if (error.status === 401 && !isAuthCall(req.url)) {
+      if (error.status === 403 && error.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
+        // Still on a temporary password: send the user to set their own (no error toast)
+        authStore.requirePasswordChange();
+        router.navigate(['/change-password']);
+      } else if (error.status === 401 && !isAuthCall(req.url)) {
         endSession();
       } else if (!req.context.get(SILENT_ERRORS) && !isAuthCall(req.url)) {
         notify.error(error.status === 0

@@ -1,6 +1,5 @@
 package com.fleetops.dto.driver;
 
-import com.fleetops.dto.admin.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -9,7 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Login account created together with a new driver profile. Same rules as {@code RegisterRequest}. */
+/** Login account created together with a new driver profile. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,8 +27,5 @@ public class DriverUserRequest {
     @Size(max = 100, message = "Full name must not exceed 100 characters")
     private String fullName;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Pattern(regexp = PasswordPolicy.REGEX, message = PasswordPolicy.MESSAGE)
-    private String password;
+    // No password: a temporary one is generated and e-mailed; the driver changes it at first sign-in.
 }

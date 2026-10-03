@@ -1,6 +1,5 @@
 package com.fleetops.controller;
 
-import com.fleetops.dto.admin.AdminResetPasswordRequest;
 import com.fleetops.dto.admin.AdminUserResponse;
 import com.fleetops.dto.admin.UserCreateRequest;
 import com.fleetops.dto.admin.UserUpdateRequest;
@@ -91,11 +90,9 @@ public class AdminUserController {
 
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    @Operation(summary = "Set a new password for a user")
-    public ResponseEntity<Void> resetPassword(@PathVariable Long id,
-                                              @Valid @RequestBody AdminResetPasswordRequest request) {
-        userAdminService.resetPassword(id, request.getNewPassword());
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "Issue a new temporary password (e-mailed; user must change it at next sign-in)")
+    public AdminUserResponse resetPassword(@PathVariable Long id) {
+        return userAdminService.resetPassword(id);
     }
 
     @DeleteMapping("/{id}")

@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -40,7 +39,7 @@ public class DriverService {
     private final DriverRepository driverRepository;
     private final UserRepository userRepository;
     private final VehicleRepository vehicleRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final CredentialService credentialService;
     private final EntityManager entityManager;
 
     @Transactional
@@ -54,7 +53,15 @@ public class DriverService {
             throw new BusinessRuleException("Employee number '" + request.getEmployeeNumber() + "' already exists");
         }
 
-        User user = linkExisting ? loadEligibleUser(request.getUserId()) : createDriverLogin(request.getNewUser());
+        String temporaryPassword = null;
+        User user;
+        if (linkExisting) {
+            user = loadEligibleUser(request.getUserId());
+        } else {
+            user = newDriverLogin(request.getNewUser());
+            temporaryPassword = credentialService.issueTemporaryPassword(user);
+            user = userRepository.save(user);
+        }
 
         Driver driver = Driver.builder()
                 .user(user)
@@ -71,7 +78,11 @@ public class DriverService {
 
         driver = driverRepository.save(driver);
         log.info("Driver registered: {} ({})", driver.getEmployeeNumber(), driver.getId());
-        return mapToResponse(driver);
+        DriverResponse response = mapToResponse(driver);
+        if (temporaryPassword != null) {
+            response.setCredentials(credentialService.deliver(user, temporaryPassword, false));
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -264,7 +275,8 @@ public class DriverService {
         return user;
     }
 
-    private User createDriverLogin(DriverUserRequest request) {
+    /** Builds (does not save) the DRIVER login; the caller issues the temporary password and saves. */
+    private User newDriverLogin(DriverUserRequest request) {
         String username = request.getUsername().trim();
         String email = request.getEmail().trim();
         if (userRepository.existsByUsername(username)) {
@@ -273,16 +285,14 @@ public class DriverService {
         if (userRepository.existsByEmail(email)) {
             throw new BusinessRuleException("Email '" + email + "' is already in use");
         }
-        User user = User.builder()
+        return User.builder()
                 .username(username)
                 .email(email)
                 .fullName(request.getFullName().trim())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(UserRole.DRIVER)
                 .enabled(true)
                 .emailVerified(true)
                 .build();
-        return userRepository.save(user);
     }
 
     private void clearAssignment(Driver driver) {

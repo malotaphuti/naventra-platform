@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,8 +25,8 @@ public class UserAdminService {
 
     private final UserRepository userRepository;
     private final DriverRepository driverRepository;
-    private final PasswordEncoder passwordEncoder;
     private final TokenStoreService tokenStore;
+    private final CredentialService credentialService;
 
     @Transactional(readOnly = true)
     public Page<AdminUserResponse> searchUsers(String search, UserRole role, Boolean enabled, Pageable pageable) {
@@ -72,14 +71,16 @@ public class UserAdminService {
                 .email(email)
                 .fullName(request.getFullName().trim())
                 .role(request.getRole())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .enabled(true)
                 .emailVerified(true)
                 .build();
+        String temporaryPassword = credentialService.issueTemporaryPassword(user);
 
         user = userRepository.save(user);
         log.info("User created by admin: {} ({})", user.getUsername(), user.getRole());
-        return mapToResponse(user);
+        AdminUserResponse response = mapToResponse(user);
+        response.setCredentials(credentialService.deliver(user, temporaryPassword, false));
+        return response;
     }
 
     @Transactional
@@ -134,18 +135,19 @@ public class UserAdminService {
         return mapToResponse(userRepository.save(user));
     }
 
+    /** Issues a new temporary password, signs the user out everywhere and e-mails the credentials. */
     @Transactional
-    public void resetPassword(Long id, String newPassword) {
+    public AdminUserResponse resetPassword(Long id) {
         User user = findUser(id);
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        user.setFailedLoginAttempts(0);
-        user.setAccountLocked(false);
-        user.setLockedUntil(null);
+        String temporaryPassword = credentialService.issueTemporaryPassword(user);
         user.setPasswordResetToken(null);
         user.setPasswordResetTokenExpiry(null);
-        userRepository.save(user);
+        user = userRepository.save(user);
         tokenStore.deleteToken("refresh:" + id);
         log.info("Password reset by admin for user {}", user.getUsername());
+        AdminUserResponse response = mapToResponse(user);
+        response.setCredentials(credentialService.deliver(user, temporaryPassword, true));
+        return response;
     }
 
     @Transactional
@@ -185,6 +187,7 @@ public class UserAdminService {
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
                 .hasDriverProfile(driverRepository.existsByUserIdAndDeletedFalse(user.getId()))
+                .mustChangePassword(user.isMustChangePassword())
                 .build();
     }
 }

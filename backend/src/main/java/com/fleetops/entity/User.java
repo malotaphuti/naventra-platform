@@ -57,6 +57,12 @@ public class User extends BaseAuditEntity {
 
     private LocalDateTime passwordResetTokenExpiry;
 
+    /** Set when an administrator issued a temporary password; cleared once the user picks their own. */
+    @Builder.Default
+    private boolean mustChangePassword = false;
+
+    private LocalDateTime tempPasswordExpiresAt;
+
     @Builder.Default
     private boolean deleted = false;
 }

@@ -27,5 +27,7 @@ public class AuthResponse {
         private String email;
         private String fullName;
         private UserRole role;
+        /** True after an admin issued a temporary password: the app must send the user to "set new password". */
+        private boolean mustChangePassword;
     }
 }

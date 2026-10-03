@@ -145,8 +145,8 @@ export class LoginComponent {
 
     const { username, password } = this.loginForm.value;
     this.authService.login({ username: username!, password: password! }).subscribe({
-      next: () => {
-        this.router.navigate(['/dashboard']);
+      next: res => {
+        this.router.navigate([res.user.mustChangePassword ? '/change-password' : '/dashboard']);
       },
       error: (err) => {
         this.loading.set(false);

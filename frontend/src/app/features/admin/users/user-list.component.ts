@@ -18,7 +18,6 @@ import { NotifyService } from '../../../core/services/notify.service';
 import { Page } from '../../../core/models/page.model';
 import { DialogService } from '../../../shared/dialogs/dialog.service';
 import { ROLE_LABELS } from '../../../core/layout/shell/shell.component';
-import { PASSWORD_HINT } from '../../drivers/driver.models';
 import { AdminUser, ROLES } from './user.models';
 import { UserDialogComponent, UserDialogData } from './user-dialog.component';
 
@@ -84,6 +83,7 @@ import { UserDialogComponent, UserDialogData } from './user-dialog.component';
           <td mat-cell *matCellDef="let u">
             <span class="pill" [ngClass]="u.enabled ? 'ok' : 'danger'">{{ u.enabled ? 'Enabled' : 'Disabled' }}</span>
             @if (u.accountLocked) { <span class="pill warn">Locked</span> }
+            @if (u.mustChangePassword) { <span class="pill warn" title="Signed in only with a temporary password so far">Temp password</span> }
             @if (!u.emailVerified) { <span class="pill warn">Unverified</span> }
           </td>
         </ng-container>
@@ -182,8 +182,12 @@ export class UserListComponent implements OnInit {
   create(): void {
     this.openDialog({}).subscribe(u => {
       if (!u) return;
-      this.notify.success(`User ${u.username} created`);
       this.load();
+      if (u.credentials) {
+        this.dialogs.credentials({ username: u.username, fullName: u.fullName, credentials: u.credentials }).subscribe();
+      } else {
+        this.notify.success(`User ${u.username} created`);
+      }
     });
   }
 
@@ -221,18 +225,20 @@ export class UserListComponent implements OnInit {
   }
 
   resetPassword(user: AdminUser): void {
-    this.dialogs.prompt({
+    this.dialogs.confirm({
       title: `Reset password for ${user.username}`,
-      message: 'Set a new password and share it with the user securely. Their active sessions will be signed out.',
-      label: 'New password',
-      type: 'text',
-      required: true,
-      hint: PASSWORD_HINT,
-      confirmText: 'Reset password'
-    }).subscribe(value => {
-      if (value === null || value === undefined || !String(value)) return;
-      this.http.post(`/api/v1/admin/users/${user.id}/reset-password`, { newPassword: String(value) })
-        .subscribe(() => this.notify.success(`Password reset for ${user.username}`));
+      message: `A new temporary password will be e-mailed to ${user.email}. ${user.fullName} will be signed out `
+        + 'everywhere and must choose a new password at their next sign-in.',
+      confirmText: 'Reset and e-mail'
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.http.post<AdminUser>(`/api/v1/admin/users/${user.id}/reset-password`, null).subscribe(u => {
+        this.load();
+        if (u.credentials) {
+          this.dialogs.credentials({ username: u.username, fullName: u.fullName, credentials: u.credentials, reset: true })
+            .subscribe();
+        }
+      });
     });
   }
 

@@ -75,7 +75,9 @@ Run the demo profile with `mvn spring-boot:run -Dspring-boot.run.profiles=demo`.
 | `demo` | `maintenance` | `Maint@123` | MAINTENANCE_OFFICER |
 | `demo` | `executive` | `Exec@123` | EXECUTIVE |
 
-Change the admin password before deploying anywhere shared. After 5 failed logins an account locks for 30 minutes (`fleetops.security.*` in `application.yml`).
+Change the admin password before deploying anywhere shared.
+
+**New accounts:** when an administrator creates a user (or a manager registers a driver with a new login), or resets a password, FleetOps generates a temporary password and e-mails the username, password and sign-in link to the user. The account must choose its own password at first sign-in. Until then the API refuses every call except "change password" with `403 PASSWORD_CHANGE_REQUIRED`. Temporary passwords expire after `TEMP_PASSWORD_HOURS`. If e-mail isn't configured or sending fails, the administrator sees the temporary password once to pass on manually. After 5 failed logins an account locks for 30 minutes (`fleetops.security.*` in `application.yml`).
 
 ## Environment variables
 
@@ -92,6 +94,9 @@ The backend reads these (defaults in `application.yml`):
 | `CORS_ORIGINS` | `http://localhost:4200` | |
 | `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | Gmail SMTP | Needed for password reset and verification emails |
 | `UPLOAD_PATH` | `./uploads` | |
+| `APP_URL` | `http://localhost:4200` | Public address used in links inside account e-mails. |
+| `MAIL_FROM` | SMTP username | Sender shown on account e-mails, e.g. `FleetOps <you@gmail.com>`. |
+| `TEMP_PASSWORD_HOURS` | `72` | How long an admin-issued temporary password stays valid. |
 | `FLEETOPS_TIMEZONE` | `Africa/Johannesburg` | Business time zone. Times users enter (fuel slips, incidents) are compared with server "now" in this zone. |
 
 ## API reference

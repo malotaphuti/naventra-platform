@@ -1,11 +1,16 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, signedInGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: 'change-password',
+    loadComponent: () => import('./features/auth/set-password/set-password.component').then(m => m.SetPasswordComponent),
+    canActivate: [signedInGuard]
   },
   {
     path: '',

@@ -6,6 +6,8 @@ export interface UserInfo {
   email: string;
   fullName: string;
   role: string;
+  /** True while the user still has an administrator-issued temporary password. */
+  mustChangePassword?: boolean;
 }
 
 export interface AuthState {
@@ -28,6 +30,14 @@ export class AuthStore {
     const newState: AuthState = { accessToken, refreshToken, user };
     this.state.set(newState);
     localStorage.setItem('fleetops_auth', JSON.stringify(newState));
+  }
+
+  /** Marks the signed-in user as needing a password change (e.g. after the API refused a call). */
+  requirePasswordChange(): void {
+    const s = this.state();
+    if (s.user && !s.user.mustChangePassword) {
+      this.setAuth(s.accessToken!, s.refreshToken!, { ...s.user, mustChangePassword: true });
+    }
   }
 
   clearAuth(): void {

@@ -73,6 +73,12 @@ public class AuthService {
             throw new BusinessRuleException("Account is disabled. Contact your administrator.");
         }
 
+        if (user.isMustChangePassword() && user.getTempPasswordExpiresAt() != null
+                && user.getTempPasswordExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleException(
+                    "Your temporary password has expired. Ask your administrator to reset it.");
+        }
+
         // Check if email is verified
         if (!user.isEmailVerified()) {
             throw new BusinessRuleException("Email not verified. Please verify your email first.");
@@ -102,6 +108,7 @@ public class AuthService {
                         .email(user.getEmail())
                         .fullName(user.getFullName())
                         .role(user.getRole())
+                        .mustChangePassword(user.isMustChangePassword())
                         .build())
                 .build();
     }
@@ -147,6 +154,7 @@ public class AuthService {
                         .email(user.getEmail())
                         .fullName(user.getFullName())
                         .role(user.getRole())
+                        .mustChangePassword(user.isMustChangePassword())
                         .build())
                 .build();
     }
@@ -232,8 +240,13 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new BusinessRuleException("Current password is incorrect");
         }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("Choose a new password that is different from the current one");
+        }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
+        user.setTempPasswordExpiresAt(null);
         userRepository.save(user);
 
         // Invalidate refresh token to force re-login
