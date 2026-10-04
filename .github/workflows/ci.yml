@@ -1,0 +1,112 @@
+name: FleetOps CI/CD
+
+on:
+  push:
+    branches: ['**']          # every branch gets CI
+  pull_request:
+    branches: [main]
+  workflow_dispatch:          # "Run workflow" button
+
+permissions:
+  contents: read              # least privilege for the GitHub token
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest    # GitHub's machines - never the VM
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '21', distribution: 'temurin', cache: 'maven' }
+      - name: Build and test
+        working-directory: backend
+        run: mvn -B clean verify
+      - uses: actions/upload-artifact@v4
+        with: { name: backend-jar, path: backend/target/*.jar, if-no-files-found: error }
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build:prod
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        with: { name: website, path: frontend/dist/fleetops-frontend/browser, if-no-files-found: error }
+
+  package:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: backend-jar, path: release/app }
+      - uses: actions/download-artifact@v4
+        with: { name: website, path: release/www }
+      - name: Assemble release
+        run: |
+          mv release/app/*.jar release/app/fleetops-backend.jar
+          test -f release/www/index.html
+          cp deploy/windows/install-fleetops.ps1 release/
+          echo "${{ github.sha }}" > release/VERSION.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: fleetops-release, path: release/, retention-days: 30 }
+
+  deploy:
+    needs: [package]
+    # Only a real push to main deploys - never a pull request (important for a public repo)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, windows, fleetops-prod]
+    environment:
+      name: production          # waits for approval
+      url: https://${{ vars.FLEETOPS_DOMAIN }}
+    concurrency: production     # never two deploys at once
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: fleetops-release
+          path: C:\fleetops-releases\${{ github.run_number }}
+      - name: Install, verify, roll back on failure
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releases = 'C:\fleetops-releases'
+          $new  = Join-Path $releases '${{ github.run_number }}'
+          $prev = Get-Content "$releases\current.txt" -ErrorAction SilentlyContinue
+          $p = @{ Domain = '${{ vars.FLEETOPS_DOMAIN }}'; AcmeEmail = '${{ vars.ACME_EMAIL }}' }
+          if (-not $p.Domain -or -not $p.AcmeEmail) { throw 'Set FLEETOPS_DOMAIN and ACME_EMAIL in the production environment' }
+
+          function Test-Up([string] $Url) {
+            try { return (Invoke-RestMethod $Url -TimeoutSec 10).status -eq 'UP' } catch { return $false }
+          }
+          function Test-Healthy {
+            foreach ($i in 1..12) {
+              if (Test-Up "https://$($p.Domain)/api/actuator/health") { return $true }
+              Start-Sleep 10
+            }
+            # The VM may not reach its own public address; fall back to the local backend
+            if (Test-Up 'http://127.0.0.1:8080/api/actuator/health') {
+              Write-Warning 'Public URL not reachable from the VM itself, but the backend is UP locally'
+              return $true
+            }
+            return $false
+          }
+
+          try {
+            & "$new\install-fleetops.ps1" @p
+            if (-not (Test-Healthy)) { throw 'Health check failed' }
+            Set-Content "$releases\current.txt" $new
+            "Deployed ${{ github.sha }} (run ${{ github.run_number }})"
+          } catch {
+            Write-Warning "Deploy failed: $_"
+            if ($prev -and (Test-Path "$prev\install-fleetops.ps1")) {
+              Write-Warning "Rolling back to $prev"
+              & "$prev\install-fleetops.ps1" @p
+            }
+            throw
+          }

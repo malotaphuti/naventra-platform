@@ -1,0 +1,32 @@
+# Java / Maven
+backend/target/
+*.jar
+*.war
+*.class
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+docker-compose.override.yml
+deploy/backups/
+*.log
+
+# Uploads
+uploads/
+
+# Python build cache (docs/guides generators)
+__pycache__/
+*.pyc

@@ -1,0 +1,24 @@
+# Caddy terminates HTTPS (free Let's Encrypt certificates, renewed automatically)
+# and forwards everything to the frontend container. The frontend's nginx serves the
+# Angular app and proxies /api/ to the backend on the private Docker network.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy frontend:80
+}
+
+# Redirect www to the bare domain (remove if you don't use www)
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
