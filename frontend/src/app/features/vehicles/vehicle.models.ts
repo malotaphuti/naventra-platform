@@ -39,4 +39,4 @@ export const VEHICLE_TRANSITIONS: Record<string, string[]> = {
   RETIRED: []
 };
 
-export const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'Hybrid', 'LPG'];
+export const FUEL_TYPES = ['Diesel', 'Petrol'];

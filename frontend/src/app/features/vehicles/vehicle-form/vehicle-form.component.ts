@@ -50,14 +50,6 @@ const DATE_FIELDS = ['purchaseDate', 'licenseExpiryDate', 'insuranceExpiryDate',
             <input matInput formControlName="vin" maxlength="17">
             <mat-error>VIN must be 17 characters</mat-error>
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Engine number</mat-label>
-            <input matInput formControlName="engineNumber" maxlength="30">
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Chassis number</mat-label>
-            <input matInput formControlName="chassisNumber" maxlength="30">
-          </mat-form-field>
         </div>
 
         <h2>Specs</h2>
@@ -177,8 +169,6 @@ export class VehicleFormComponent implements OnInit {
   readonly form = this.fb.group({
     registrationNumber: ['', [Validators.required, Validators.maxLength(20)]],
     vin: ['', [Validators.minLength(17), Validators.maxLength(17)]],
-    engineNumber: [''],
-    chassisNumber: [''],
     make: ['', [Validators.required, Validators.maxLength(50)]],
     model: ['', [Validators.required, Validators.maxLength(50)]],
     variant: [''],

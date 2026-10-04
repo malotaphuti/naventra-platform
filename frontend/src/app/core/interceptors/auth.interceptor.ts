@@ -31,7 +31,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const endSession = () => {
     if (authStore.isAuthenticated()) {
-      notify.error('Your session has expired. Please sign in again.');
+      notify.error('Your session has expired. Please log in again.');
     }
     authStore.clearAuth();
     router.navigate(['/login']);

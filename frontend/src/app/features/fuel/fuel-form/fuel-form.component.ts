@@ -17,6 +17,7 @@ import {
   DriverOption, TripOption, VehicleOption, loadActiveDrivers, loadDriverContext, loadTripsInProgress,
   loadVehicles, vehicleLabel
 } from '../fleet-lookups';
+import { FUEL_TYPES } from '../../vehicles/vehicle.models';
 
 @Component({
   selector: 'app-fuel-form',
@@ -154,7 +155,7 @@ export class FuelFormComponent implements OnInit {
   private readonly notify = inject(NotifyService);
 
   readonly isDriver = this.auth.hasRole('DRIVER');
-  readonly fuelTypes = ['Diesel', 'Petrol 93', 'Petrol 95', 'LRP', 'Other'];
+  readonly fuelTypes = FUEL_TYPES;
   readonly maxDateTime = toDateTimeInput(new Date());
 
   readonly loading = signal(true);

@@ -55,8 +55,6 @@ import { VEHICLE_TRANSITIONS, Vehicle } from '../vehicle.models';
           <div class="panel-head"><h2>Vehicle details</h2></div>
           <div class="facts">
             <div class="fact"><span class="fact-label">VIN</span><span class="fact-value">{{ v.vin || '—' }}</span></div>
-            <div class="fact"><span class="fact-label">Engine number</span><span class="fact-value">{{ v.engineNumber || '—' }}</span></div>
-            <div class="fact"><span class="fact-label">Chassis number</span><span class="fact-value">{{ v.chassisNumber || '—' }}</span></div>
             <div class="fact"><span class="fact-label">Odometer</span><span class="fact-value">{{ v.currentOdometerKm | number }} km</span></div>
             <div class="fact"><span class="fact-label">Seats</span><span class="fact-value">{{ v.seatingCapacity || '—' }}</span></div>
             <div class="fact"><span class="fact-label">Engine</span><span class="fact-value">{{ v.engineCapacityCc ? (v.engineCapacityCc | number) + ' cc' : '—' }}</span></div>

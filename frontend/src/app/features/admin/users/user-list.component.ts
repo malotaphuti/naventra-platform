@@ -211,7 +211,7 @@ export class UserListComponent implements OnInit {
     }
     this.dialogs.confirm({
       title: 'Disable user',
-      message: `Disable ${user.fullName} (${user.username})? They will not be able to sign in.`,
+      message: `Disable ${user.fullName} (${user.username})? They will not be able to log in.`,
       confirmText: 'Disable',
       danger: true
     }).subscribe(ok => ok && run());

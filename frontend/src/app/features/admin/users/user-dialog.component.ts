@@ -49,7 +49,7 @@ export interface UserDialogData {
         @if (!editing) {
           <p class="note">
             FleetOps generates a temporary password and e-mails the sign-in details to this address.
-            The user must choose their own password the first time they sign in.
+            The user must choose their own password the first time they log in.
           </p>
         }
       </form>

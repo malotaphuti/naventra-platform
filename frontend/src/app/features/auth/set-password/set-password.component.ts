@@ -62,7 +62,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
               @if (saving()) { <mat-spinner diameter="20"></mat-spinner> } @else { Save and continue }
             </button>
           </form>
-          <button mat-button type="button" class="full signout" (click)="signOut()">Sign out</button>
+          <button mat-button type="button" class="full signout" (click)="signOut()">Log out</button>
         </div>
       </div>
     </div>

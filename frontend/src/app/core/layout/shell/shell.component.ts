@@ -101,7 +101,7 @@ export const ROLE_LABELS: Record<string, string> = {
             </button>
             <button mat-menu-item (click)="logout()">
               <mat-icon>logout</mat-icon>
-              <span>Sign out</span>
+              <span>Log out</span>
             </button>
           </mat-menu>
         </header>

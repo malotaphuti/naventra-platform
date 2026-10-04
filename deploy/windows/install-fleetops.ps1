@@ -25,6 +25,8 @@
   Redis is not used on Windows: refresh tokens are kept in memory (users sign in again after a restart).
 #>
 #Requires -RunAsAdministrator
+# Named parameters only: a value pasted without its -Name must fail, not slide into another setting
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory = $true)] [string] $Domain,
     [Parameter(Mandatory = $true)] [string] $AcmeEmail,
@@ -102,6 +104,13 @@ if ($SmtpUser) {
     if ($SmtpPassword) { $secrets.SmtpPassword = $SmtpPassword }
     $secrets.MailFrom = $(if ($MailFrom) { $MailFrom } else { "FleetOps <$SmtpUser>" })
     $secrets | ConvertTo-Json | Set-Content -Encoding UTF8 $secretsFile
+}
+$hostPattern = '^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$'
+if ($secrets.SmtpHost -and $secrets.SmtpHost -notmatch $hostPattern) {
+    throw "SMTP host '$($secrets.SmtpHost)' is not a server name (expected e.g. smtp.gmail.com). Re-run with -SmtpHost 'smtp.gmail.com'."
+}
+if ($secrets.SmtpUser -and -not $secrets.SmtpPassword) {
+    Write-Host "    E-mail user $($secrets.SmtpUser) is set but the password is missing - re-run with -SmtpPassword '...'" -ForegroundColor Yellow
 }
 if ($secrets.SmtpUser -and $secrets.SmtpPassword) {
     Ok "E-mail: sending as $($secrets.SmtpUser) via $($secrets.SmtpHost):$($secrets.SmtpPort)"

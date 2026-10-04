@@ -35,7 +35,7 @@ export interface CredentialsDialogData {
           <mat-icon>mark_email_read</mat-icon>
           <div>
             Sign-in details for <b>{{ data.fullName }}</b> were e-mailed to <b>{{ c.emailedTo }}</b>.
-            They'll be asked to choose their own password the first time they sign in.
+            They'll be asked to choose their own password the first time they log in.
           </div>
         </div>
       } @else {

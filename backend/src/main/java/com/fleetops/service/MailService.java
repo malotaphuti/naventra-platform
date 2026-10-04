@@ -67,12 +67,12 @@ public class MailService {
 
                 %s
 
-                Sign in at: %s
+                Log in at:  %s
                 Username:   %s
                 Temporary password: %s
 
                 This temporary password expires on %s. You'll be asked to choose your own password the first
-                time you sign in.
+                time you log in.
 
                 If you weren't expecting this e-mail, please contact your administrator.
                 """.formatted(user.getFullName(), intro, appUrl, user.getUsername(), temporaryPassword, expiry);
@@ -89,9 +89,9 @@ public class MailService {
                         <td style="padding:6px 0;font-family:Consolas,monospace;font-size:15px"><b>%s</b></td></tr>
                   </table>
                   <p><a href="%s" style="background:#0d9488;color:#fff;padding:10px 18px;border-radius:8px;
-                     text-decoration:none;display:inline-block">Sign in to FleetOps</a></p>
+                     text-decoration:none;display:inline-block">Log in to FleetOps</a></p>
                   <p style="color:#64748b;font-size:13px">This temporary password expires on %s. You'll be asked
-                     to choose your own password the first time you sign in.<br>
+                     to choose your own password the first time you log in.<br>
                      If you weren't expecting this e-mail, please contact your administrator.</p>
                 </div>
                 """.formatted(HtmlUtils.htmlEscape(user.getFullName()), intro, HtmlUtils.htmlEscape(user.getUsername()),

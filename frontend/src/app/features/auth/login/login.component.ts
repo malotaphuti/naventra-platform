@@ -30,8 +30,8 @@ import { AuthService } from '../../../core/services/auth.service';
         </div>
 
         <div class="login-card">
-          <h2>Welcome back</h2>
-          <p class="hint">Sign in to your FleetOps account</p>
+          <h2>Welcome</h2>
+          <p class="hint">Log in to your FleetOps account</p>
 
           <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
             <mat-form-field appearance="outline" class="full-width">
@@ -67,7 +67,7 @@ import { AuthService } from '../../../core/services/auth.service';
               @if (loading()) {
                 <mat-spinner diameter="20"></mat-spinner>
               } @else {
-                Sign in
+                Log in
               }
             </button>
           </form>
